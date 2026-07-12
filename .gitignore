@@ -1,0 +1,40 @@
+# Dependencies
+/node_modules
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build
+dist/
+build/
+coverage/
+
+# Expo
+.expo/
+.expo-shared/
+
+# React Native
+android/
+ios/
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# Operating System 
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+
