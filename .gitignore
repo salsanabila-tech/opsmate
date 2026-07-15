@@ -29,6 +29,9 @@ ios/
 backend/prisma/*.db
 backend/prisma/*.db-journal
 
+# Prisma generated client
+backend/src/generated/prisma/
+
 # Operating System 
 .DS_Store
 Thumbs.db
