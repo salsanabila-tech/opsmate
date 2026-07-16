@@ -1,8 +1,8 @@
 import cors from 'cors';
 import express from 'express';
-import { errorMiddleware } from './middlewares/error.middleware';
-import { notFoundMiddleware } from './middlewares/not-found.middleware';
-import apiRouter from "./routes";
+import { errorMiddleware } from './middlewares/error.middleware.js';
+import { notFoundMiddleware } from './middlewares/not-found.middleware.js';
+import apiRouter from "./routes/index.js";
 
 const app = express();
 

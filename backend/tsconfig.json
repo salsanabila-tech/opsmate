@@ -3,7 +3,7 @@
   "compilerOptions": {
 
     "module": "nodenext",
-    "target": "es2022",
+    "target": "es2023",
     "moduleResolution": "nodenext",
     "outDir": "./dist",
     "rootDir": "./src",
