@@ -9,11 +9,19 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1",
+<<<<<<< HEAD
+    "prisma:validate": "prisma validate",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "prisma db seed"
+=======
 
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:studio": "prisma studio"
+>>>>>>> origin/main
   },
   "keywords": [],
   "author": "",
@@ -22,6 +30,10 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+<<<<<<< HEAD
+    "argon2": "^0.44.0",
+=======
+>>>>>>> origin/main
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

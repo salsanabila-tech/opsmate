@@ -6,3 +6,133 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  ADMIN
+  TECHNICIAN
+
+  @@map("user_role")
+}
+
+enum WorkOrderStatus {
+  PENDING
+  ASSIGNED
+  ON_THE_WAY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("work_order_status")
+}
+
+enum AttachmentType {
+  BEFORE
+  AFTER
+  OTHER
+
+  @@map("attachment_type")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(100)
+  email        String   @unique @db.VarChar(150)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  phone        String?  @db.VarChar(20)
+  role         UserRole
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  assignedWorkOrders  WorkOrder[]              @relation("WorkOrderTechnician")
+  createdWorkOrders   WorkOrder[]              @relation("WorkOrderCreator")
+  statusChanges       WorkOrderStatusHistory[] @relation("StatusChangedBy")
+  uploadedAttachments WorkOrderAttachment[]    @relation("AttachmentUploadedBy")
+
+  @@map("users")
+}
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(100)
+  phone     String   @db.VarChar(20)
+  email     String?  @db.VarChar(150)
+  address   String   @db.Text
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  workOrders WorkOrder[]
+
+  @@index([phone])
+  @@map("customers")
+}
+
+model WorkOrder {
+  id              String          @id @default(uuid()) @db.Uuid
+  workOrderNumber String          @unique @map("work_order_number") @db.VarChar(30)
+  customerId      String          @map("customer_id") @db.Uuid
+  technicianId    String?         @map("technician_id") @db.Uuid
+  title           String          @db.VarChar(150)
+  description     String          @db.Text
+  scheduledAt     DateTime        @map("scheduled_at") @db.Timestamptz(3)
+  status          WorkOrderStatus @default(PENDING)
+  completedAt     DateTime?       @map("completed_at") @db.Timestamptz(3)
+  createdById     String          @map("created_by") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  technician User?    @relation("WorkOrderTechnician", fields: [technicianId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  createdBy  User     @relation("WorkOrderCreator", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  statusHistories WorkOrderStatusHistory[]
+  attachments     WorkOrderAttachment[]
+
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([createdById])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("work_orders")
+}
+
+model WorkOrderStatusHistory {
+  id             String           @id @default(uuid()) @db.Uuid
+  workOrderId    String           @map("work_order_id") @db.Uuid
+  previousStatus WorkOrderStatus? @map("previous_status")
+  newStatus      WorkOrderStatus  @map("new_status")
+  changedById    String           @map("changed_by") @db.Uuid
+  notes          String?          @db.Text
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  changedBy User      @relation("StatusChangedBy", fields: [changedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([workOrderId])
+  @@index([changedById])
+  @@index([createdAt])
+  @@map("work_order_status_histories")
+}
+
+model WorkOrderAttachment {
+  id             String         @id @default(uuid()) @db.Uuid
+  workOrderId    String         @map("work_order_id") @db.Uuid
+  uploadedById   String         @map("uploaded_by") @db.Uuid
+  fileUrl        String         @map("file_url") @db.Text
+  fileName       String         @map("file_name") @db.VarChar(255)
+  fileType       String         @map("file_type") @db.VarChar(100)
+  fileSize       BigInt         @map("file_size") @db.BigInt
+  attachmentType AttachmentType @default(OTHER) @map("attachment_type")
+  description    String?        @db.Text
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  workOrder  WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  uploadedBy User      @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([workOrderId])
+  @@index([uploadedById])
+  @@index([attachmentType])
+  @@index([createdAt])
+  @@map("work_order_attachments")
+}
