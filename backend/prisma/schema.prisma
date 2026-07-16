@@ -48,6 +48,7 @@ model User {
   createdWorkOrders   WorkOrder[]              @relation("WorkOrderCreator")
   statusChanges       WorkOrderStatusHistory[] @relation("StatusChangedBy")
   uploadedAttachments WorkOrderAttachment[]    @relation("AttachmentUploadedBy")
+  authSessions        AuthSessions[]
 
   @@map("users")
 }
@@ -135,4 +136,23 @@ model WorkOrderAttachment {
   @@index([attachmentType])
   @@index([createdAt])
   @@map("work_order_attachments")
+}
+
+model AuthSessions {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(255)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  userAgent        String?   @map("user_agent") @db.Text
+  ipAddress        String?   @map("ip_address") @db.VarChar(45)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("auth_sessions")
 }
