@@ -11,4 +11,12 @@ export const loginBodySchema = z
   })
   .strict();
 
+export const refreshTokenBodySchema = z
+  .object({
+    refreshToken: z.string().trim().min(1, 'Refresh token wajib diisi'),
+  })
+  .strict();
+
 export type LoginBody = z.infer<typeof loginBodySchema>;
+
+export type RefreshTokenBody = z.infer<typeof refreshTokenBodySchema>;
