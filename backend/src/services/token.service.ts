@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto';
-import { SignJWT } from 'jose';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
+import { SignJWT, jwtVerify } from 'jose';
 import type { UserRole } from '../generated/prisma/client.js';
 import { env } from '../config/env.js';
 
@@ -18,6 +18,11 @@ type AccessTokenInput = {
 };
 
 type RefreshTokenInput = {
+  userId: string;
+  sessionId: string;
+};
+
+export type VerifiedRefreshToken = {
   userId: string;
   sessionId: string;
 };
@@ -58,6 +63,47 @@ export async function createRefreshToken(input: RefreshTokenInput): Promise<stri
     .sign(refreshSecret);
 }
 
+export async function verifyRefreshToken(
+  token: string,
+): Promise<VerifiedRefreshToken> {
+  const { payload } = await jwtVerify(
+    token, 
+    refreshSecret, 
+    {
+    algorithms: [JWT_ALGORITHM],
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
+  },
+);
+
+  if (
+    payload.tokenType !== 'refresh' || 
+    typeof payload.sub !== 'string' || 
+    typeof payload.sessionId !== 'string'
+  ) {
+    throw new Error(
+      'Refresh token payload tidak valid'
+    );
+  }
+
+  return {
+    userId: payload.sub,
+    sessionId: payload.sessionId,
+  };
+}
+
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+export function tokenHashMatches(token: string, storedHash: string): boolean {
+  const incominHashBuffer = Buffer.from(hashToken(token), 'hex');
+
+  const storedHashBuffer = Buffer.from(storedHash, 'hex');
+
+  if (incominHashBuffer.length !== storedHashBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(incominHashBuffer, storedHashBuffer);
 }
