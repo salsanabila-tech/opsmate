@@ -1,6 +1,6 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
-import type { UserRole } from '../generated/prisma/client.js';
+import { UserRole } from '../generated/prisma/client.js';
 import { env } from '../config/env.js';
 
 const JWT_ALGORITHM = 'HS256';
@@ -63,27 +63,15 @@ export async function createRefreshToken(input: RefreshTokenInput): Promise<stri
     .sign(refreshSecret);
 }
 
-export async function verifyRefreshToken(
-  token: string,
-): Promise<VerifiedRefreshToken> {
-  const { payload } = await jwtVerify(
-    token, 
-    refreshSecret, 
-    {
+export async function verifyRefreshToken(token: string): Promise<VerifiedRefreshToken> {
+  const { payload } = await jwtVerify(token, refreshSecret, {
     algorithms: [JWT_ALGORITHM],
     issuer: JWT_ISSUER,
     audience: JWT_AUDIENCE,
-  },
-);
+  });
 
-  if (
-    payload.tokenType !== 'refresh' || 
-    typeof payload.sub !== 'string' || 
-    typeof payload.sessionId !== 'string'
-  ) {
-    throw new Error(
-      'Refresh token payload tidak valid'
-    );
+  if (payload.tokenType !== 'refresh' || typeof payload.sub !== 'string' || typeof payload.sessionId !== 'string') {
+    throw new Error('Refresh token payload tidak valid');
   }
 
   return {
@@ -106,4 +94,30 @@ export function tokenHashMatches(token: string, storedHash: string): boolean {
   }
 
   return timingSafeEqual(incominHashBuffer, storedHashBuffer);
+}
+
+export type VerifiedAccessToken = {
+  userId: string;
+  sessionId: string;
+  role: UserRole;
+};
+
+export async function verifyAccessToken(token: string): Promise<VerifiedAccessToken> {
+  const { payload } = await jwtVerify(token, accessSecret, {
+    algorithms: [JWT_ALGORITHM],
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
+  });
+
+  const validRoles = Object.values(UserRole);
+
+  if (payload.tokenType !== 'access' || typeof payload.sub !== 'string' || typeof payload.sessionId !== 'string' || typeof payload.role !== 'string' || !validRoles.includes(payload.role as UserRole)) {
+    throw new Error('Access token paylaod tidak valid');
+  }
+
+  return {
+    userId: payload.sub,
+    sessionId: payload.sessionId,
+    role: payload.role as UserRole,
+  };
 }

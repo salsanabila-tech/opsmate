@@ -1,8 +1,9 @@
 import type { NextFunction, Request, Response } from 'express';
-import { login, refreshAuthentication } from '../services/auth.service.js';
+import { getCurrentUser, login, refreshAuthentication } from '../services/auth.service.js';
 import { loginBodySchema, refreshTokenBodySchema } from '../validations/auth.validations.js';
 import { success } from 'zod';
 import { access } from 'node:fs';
+import { AppError } from '../errors/app-error.js';
 
 export async function loginController(request: Request, response: Response, next: NextFunction): Promise<void> {
   const validationResult = loginBodySchema.safeParse(request.body);
@@ -71,6 +72,26 @@ export async function refreshTokenController(request: Request, response: Respons
       data: {
         accessToken: result.accessToken,
         refreshToken: result.refreshTokenHash,
+      },
+    });
+  } catch (error: unknown) {
+    next(error);
+  }
+}
+
+export async function getMeController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!request.auth) {
+      throw new AppError(401, 'Authentication diperlukan', 'AUTHENTICATION_REQUIRED');
+    }
+
+    const user = await getCurrentUser(request.auth.userId);
+
+    response.status(200).json({
+      success: true,
+      message: 'Profil pengguna berhasil diambil',
+      data: {
+        user,
       },
     });
   } catch (error: unknown) {

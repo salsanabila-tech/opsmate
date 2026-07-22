@@ -191,6 +191,37 @@ export async function refreshAuthentication(input: RefreshAuthenticationInput) {
   };
 }
 
+export async function getCurrentUser(
+  userId: string,
+) {
+  const user = await prisma.user.findUnique({
+    where: {
+      id: userId,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  if (!user) {
+    throw new AppError(
+      401,
+      "Pengguna authentication tidak ditemukan",
+      "AUTHENTICATION_USER_NOT_FOUND",
+    );
+  }
+
+  return user;
+}
+
 function refreshDurationInMilliseconds(): number {
   const millisecondsPerDay = 24 * 60 * 60 * 1000;
 
