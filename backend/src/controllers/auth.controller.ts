@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { getCurrentUser, login, refreshAuthentication } from '../services/auth.service.js';
+import { getCurrentUser, login, logoutCurrentSession, refreshAuthentication } from '../services/auth.service.js';
 import { loginBodySchema, refreshTokenBodySchema } from '../validations/auth.validations.js';
 import { success } from 'zod';
 import { access } from 'node:fs';
@@ -93,6 +93,26 @@ export async function getMeController(request: Request, response: Response, next
       data: {
         user,
       },
+    });
+  } catch (error: unknown) {
+    next(error);
+  }
+}
+
+export async function logoutController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!request.auth) {
+      throw new AppError(401, 'Authentication diperlukan', 'AUTHENTICATION_REQUIRED');
+    }
+
+    await logoutCurrentSession({
+      userId: request.auth.userId,
+      sessionId: request.auth.sessionId,
+    });
+
+    response.status(200).json({
+      success: true,
+      message: 'Logout Berhasil',
     });
   } catch (error: unknown) {
     next(error);
