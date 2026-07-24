@@ -18,6 +18,11 @@ type RefreshAuthenticationInput = {
   refreshToken: string;
 };
 
+type LogoutCurrentSessionInput = {
+  userId: string;
+  sessionId: string;
+};
+
 export async function login(input: LoginInput) {
   const user = await prisma.user.findUnique({
     where: {
@@ -160,11 +165,6 @@ export async function refreshAuthentication(input: RefreshAuthenticationInput) {
 
   const newExpiresAt = createRefreshTokenExpirationDate();
 
-  console.log({
-    newRefreshTokenLength: newRefreshToken.length,
-    newRefreshTokenHashLength: newRefreshTokenHash.length,
-  });
-
   const updateResult = await prisma.authSessions.updateMany({
     where: {
       id: session.id,
@@ -191,9 +191,7 @@ export async function refreshAuthentication(input: RefreshAuthenticationInput) {
   };
 }
 
-export async function getCurrentUser(
-  userId: string,
-) {
+export async function getCurrentUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: {
       id: userId,
@@ -212,14 +210,29 @@ export async function getCurrentUser(
   });
 
   if (!user) {
-    throw new AppError(
-      401,
-      "Pengguna authentication tidak ditemukan",
-      "AUTHENTICATION_USER_NOT_FOUND",
-    );
+    throw new AppError(401, 'Pengguna authentication tidak ditemukan', 'AUTHENTICATION_USER_NOT_FOUND');
   }
 
   return user;
+}
+
+export async function logoutCurrentSession(input: LogoutCurrentSessionInput): Promise<void> {
+  const revokedAt = new Date();
+
+  const updateResult = await prisma.authSessions.updateMany({
+    where: {
+      id: input.sessionId,
+      userId: input.userId,
+      revokedAt: null,
+    },
+    data: {
+      revokedAt,
+    },
+  });
+
+  if (updateResult.count !== 1) {
+    throw new AppError(401, 'Session tidak valid atau sudah dicabut', 'INVALID_SESSION');
+  }
 }
 
 function refreshDurationInMilliseconds(): number {
