@@ -40,12 +40,18 @@ export type ListTechniciansQuery = z.infer<typeof listTechniciansQuerySchema>;
 
 export const technicianIdParamSchema = z
   .object({
-    technicianId: z
-      .string()
-      .uuid('technicianId harus berupa UUID yang valid'),
+    technicianId: z.string().uuid('technicianId harus berupa UUID yang valid'),
   })
   .strict();
 
-  export type TechnicianIdParam = z.infer<
-    typeof technicianIdParamSchema
-  >;
+export type TechnicianIdParam = z.infer<typeof technicianIdParamSchema>;
+
+export const updateTechnicianStatusBodySchema = z
+  .object({
+    isActive: z.boolean({
+      message: 'isActive harus berupa boolean',
+    }),
+  })
+  .strict();
+
+export type UpdateTechnicianStatusBody = z.infer<typeof updateTechnicianStatusBodySchema>;

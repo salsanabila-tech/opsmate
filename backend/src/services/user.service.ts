@@ -21,6 +21,11 @@ type GetTechnicianDetailInput = {
   technicianId: string;
 };
 
+type UpdateTechnicianStatusInput = {
+  technicianId: string;
+  isActive: boolean;
+};
+
 export async function createTechnician(input: CreatedTechnicianInput) {
   const existingUser = await prisma.user.findUnique({
     where: {
@@ -188,4 +193,65 @@ export async function getTechnicianDetail(input: GetTechnicianDetailInput) {
     updatedAt: technician.updatedAt,
     assignedWorkOrdersCount: technician._count.assignedWorkOrders,
   };
+}
+
+export async function updateTechnicianStatus(input: UpdateTechnicianStatusInput) {
+  const changedAt = new Date();
+
+  return prisma.$transaction(async (transaction) => {
+    const updateResult = await transaction.user.updateMany({
+      where: {
+        id: input.technicianId,
+        role: UserRole.TECHNICIAN,
+      },
+      data: {
+        isActive: input.isActive,
+      },
+    });
+
+    if (updateResult.count !== 1) {
+      throw new AppError(404, 'Teknisi tidak ditemukan', 'TECHNICIAN_NOT_FOUND');
+    }
+
+    let revokedSessionsCount = 0;
+
+    if (!input.isActive) {
+      const revokeResult = await transaction.authSessions.updateMany({
+        where: {
+          userId: input.technicianId,
+          revokedAt: null,
+        },
+        data: {
+          revokedAt: changedAt,
+        },
+      });
+      revokedSessionsCount = revokeResult.count;
+    }
+
+    const technician = await transaction.user.findFirst({
+      where: {
+        id: input.technicianId,
+        role: UserRole.TECHNICIAN,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!technician) {
+      throw new AppError(404, 'Teknisi tidak ditemukan', 'TECHNICIAN_NOT_FOUND');
+    }
+
+    return {
+      technician,
+      revokedSessionsCount,
+    };
+  });
 }
