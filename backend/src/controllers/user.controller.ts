@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { createTechnician, listTechnicians } from '../services/user.service.js';
-import { createTechnicianBodySchema, listTechniciansQuerySchema } from '../validations/user.validation.js';
+import { createTechnician, getTechnicianDetail, listTechnicians } from '../services/user.service.js';
+import { createTechnicianBodySchema, listTechniciansQuerySchema, technicianIdParamSchema } from '../validations/user.validation.js';
 import { success } from 'zod';
 
 export async function createTechnicianController(request: Request, response: Response, next: NextFunction): Promise<void> {
@@ -70,6 +70,40 @@ export async function listTechniciansController(request: Request, response: Resp
       data: {
         technicians: result.technicians,
         pagination: result.pagination,
+      },
+    });
+  } catch (error: unknown) {
+    next(error);
+  }
+}
+
+export async function getTechnicianDetailController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  const validationResult = technicianIdParamSchema.safeParse(request.params);
+
+  if (!validationResult.success) {
+    response.status(422).json({
+      success: false,
+      message: 'Validasi parameter gagal',
+      code: 'VALIDATION_ERROR',
+      errors: validationResult.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'params',
+        message: issue.message,
+      })),
+    });
+
+    return;
+  }
+
+  try {
+    const technician = await getTechnicianDetail({
+      technicianId: validationResult.data.technicianId,
+    });
+
+    response.status(200).json({
+      success: true,
+      message: 'Detail teknisi berhasil diambil',
+      data: {
+        technician,
       },
     });
   } catch (error: unknown) {

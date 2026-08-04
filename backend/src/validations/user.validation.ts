@@ -37,3 +37,15 @@ export const listTechniciansQuerySchema = z
   .strict();
 
 export type ListTechniciansQuery = z.infer<typeof listTechniciansQuerySchema>;
+
+export const technicianIdParamSchema = z
+  .object({
+    technicianId: z
+      .string()
+      .uuid('technicianId harus berupa UUID yang valid'),
+  })
+  .strict();
+
+  export type TechnicianIdParam = z.infer<
+    typeof technicianIdParamSchema
+  >;

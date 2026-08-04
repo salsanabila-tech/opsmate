@@ -17,6 +17,10 @@ type ListTechniciansInput = {
   status: 'all' | 'active' | 'inactive';
 };
 
+type GetTechnicianDetailInput = {
+  technicianId: string;
+};
+
 export async function createTechnician(input: CreatedTechnicianInput) {
   const existingUser = await prisma.user.findUnique({
     where: {
@@ -141,5 +145,47 @@ export async function listTechnicians(input: ListTechniciansInput) {
       hasPreviousPage: input.page > 1,
       hasNextPage: input.page < totalPages,
     },
+  };
+}
+
+export async function getTechnicianDetail(input: GetTechnicianDetailInput) {
+  const technician = await prisma.user.findFirst({
+    where: {
+      id: input.technicianId,
+      role: UserRole.TECHNICIAN,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+
+      _count: {
+        select: {
+          assignedWorkOrders: true,
+        },
+      },
+    },
+  });
+
+  if (!technician) {
+    throw new AppError(404, 'Teknisi tidak ditemukan', 'TECHNICIAN_NOT_FOUND');
+  }
+
+  return {
+    id: technician.id,
+    name: technician.name,
+    email: technician.email,
+    phone: technician.phone,
+    role: technician.role,
+    isActive: technician.isActive,
+    createdAt: technician.createdAt,
+    updatedAt: technician.updatedAt,
+    assignedWorkOrdersCount: technician._count.assignedWorkOrders,
   };
 }
