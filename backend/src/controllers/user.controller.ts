@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { createTechnician } from '../services/user.service.js';
+import { createTechnician,  } from '../services/user.service.js';
 import { createTechnicianBodySchema } from '../validations/user.validation.js';
 import { success } from 'zod';
 
