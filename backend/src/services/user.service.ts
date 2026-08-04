@@ -10,6 +10,17 @@ type CreatedTechnicianInput = {
   password: string;
 };
 
+type ListTechniciansInput = {
+  page: number;
+  limit: number;
+  search?: string;
+  status: 'all' | 'active' | 'inactive';
+};
+
+type GetTechnicianDetailInput = {
+  technicianId: string;
+};
+
 export async function createTechnician(input: CreatedTechnicianInput) {
   const existingUser = await prisma.user.findUnique({
     where: {
@@ -55,4 +66,126 @@ export async function createTechnician(input: CreatedTechnicianInput) {
 
     throw error;
   }
+}
+
+export async function listTechnicians(input: ListTechniciansInput) {
+  const skip = (input.page - 1) * input.limit;
+
+  const where: Prisma.UserWhereInput = {
+    role: UserRole.TECHNICIAN,
+
+    ...(input.search
+      ? {
+          OR: [
+            {
+              name: {
+                contains: input.search,
+                mode: 'insensitive',
+              },
+            },
+            {
+              email: {
+                contains: input.search,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        }
+      : {}),
+
+    ...(input.status === 'all'
+      ? {}
+      : {
+          isActive: input.status === 'active',
+        }),
+  };
+
+  const [technicians, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      skip,
+      take: input.limit,
+
+      orderBy: [
+        {
+          createdAt: 'desc',
+        },
+        {
+          id: 'desc',
+        },
+      ],
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+
+    prisma.user.count({
+      where,
+    }),
+  ]);
+
+  const totalPages = Math.ceil(total / input.limit);
+
+  return {
+    technicians,
+
+    pagination: {
+      page: input.page,
+      limit: input.limit,
+      total,
+      totalPages,
+      hasPreviousPage: input.page > 1,
+      hasNextPage: input.page < totalPages,
+    },
+  };
+}
+
+export async function getTechnicianDetail(input: GetTechnicianDetailInput) {
+  const technician = await prisma.user.findFirst({
+    where: {
+      id: input.technicianId,
+      role: UserRole.TECHNICIAN,
+    },
+
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+      updatedAt: true,
+
+      _count: {
+        select: {
+          assignedWorkOrders: true,
+        },
+      },
+    },
+  });
+
+  if (!technician) {
+    throw new AppError(404, 'Teknisi tidak ditemukan', 'TECHNICIAN_NOT_FOUND');
+  }
+
+  return {
+    id: technician.id,
+    name: technician.name,
+    email: technician.email,
+    phone: technician.phone,
+    role: technician.role,
+    isActive: technician.isActive,
+    createdAt: technician.createdAt,
+    updatedAt: technician.updatedAt,
+    assignedWorkOrdersCount: technician._count.assignedWorkOrders,
+  };
 }
