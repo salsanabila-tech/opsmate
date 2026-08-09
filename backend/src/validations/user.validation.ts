@@ -55,3 +55,23 @@ export const updateTechnicianStatusBodySchema = z
   .strict();
 
 export type UpdateTechnicianStatusBody = z.infer<typeof updateTechnicianStatusBodySchema>;
+
+export const updateTechnicianBodySchema = z
+  .object({
+    name: z.string().trim().min(2, 'Nama minimal 2 karakter').max(100, 'Nama maksimal 100 karakter').optional(),
+
+    email: z
+      .string()
+      .trim()
+      .email('Format email tidak valid')
+      .transform((email) => email.toLowerCase())
+      .optional(),
+
+    phone: z.union([z.string().trim().min(8, 'Nomor telepon minimal 8 karakter').max(20, 'Nomor telepon maksimal 20 karakter'), z.null()]).optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'Setidaknya satu field harus dikirim',
+  });
+
+export type UpdateTechnicianBody = z.infer<typeof updateTechnicianBodySchema>;

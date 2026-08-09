@@ -26,6 +26,13 @@ type UpdateTechnicianStatusInput = {
   isActive: boolean;
 };
 
+type UpdateTechnicianInput = {
+  technicianId: string;
+  name?: string;
+  email?: string;
+  phone?: string | null;
+};
+
 export async function createTechnician(input: CreatedTechnicianInput) {
   const existingUser = await prisma.user.findUnique({
     where: {
@@ -254,4 +261,72 @@ export async function updateTechnicianStatus(input: UpdateTechnicianStatusInput)
       revokedSessionsCount,
     };
   });
+}
+
+export async function updateTechnician(input: UpdateTechnicianInput) {
+  const technician = await prisma.user.findFirst({
+    where: {
+      id: input.technicianId,
+      role: UserRole.TECHNICIAN,
+    },
+    select: {
+      id: true,
+      email: true,
+    },
+  });
+
+  if (!technician) {
+    throw new AppError(404, 'Teknisi tidak ditemukan', 'TECHNICIAN_NOT_FOUND');
+  }
+
+  if (input.email !== undefined && input.email !== technician.email) {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: input.email,
+        NOT: {
+          id: input.technicianId,
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (existingUser) {
+      throw new AppError(409, 'Email sudah digunakan', 'EMAIL_ALREADY_EXISTS');
+    }
+  }
+  try {
+    return await prisma.user.update({
+      where: {
+        id: input.technicianId,
+      },
+      data: {
+        ...(input.name !== undefined
+          ? {
+              name: input.name,
+            }
+          : {}),
+
+        ...(input.email !== undefined ? { email: input.email } : {}),
+        ...(input.phone !== undefined ? { phone: input.phone } : {}),
+      },
+
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new AppError(409, 'Email sudah digunakan', 'EMAIL_ALREADY_EXISTS');
+    }
+    throw error;
+  }
 }
