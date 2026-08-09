@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { createTechnician, getTechnicianDetail, listTechnicians, updateTechnicianStatus } from '../services/user.service.js';
-import { createTechnicianBodySchema, listTechniciansQuerySchema, technicianIdParamSchema, updateTechnicianStatusBodySchema } from '../validations/user.validation.js';
+import { createTechnician, getTechnicianDetail, listTechnicians, updateTechnician, updateTechnicianStatus } from '../services/user.service.js';
+import { createTechnicianBodySchema, listTechniciansQuerySchema, technicianIdParamSchema, updateTechnicianBodySchema, updateTechnicianStatusBodySchema } from '../validations/user.validation.js';
 import { success } from 'zod';
 
 export async function createTechnicianController(request: Request, response: Response, next: NextFunction): Promise<void> {
@@ -156,6 +156,55 @@ export async function updateTechnicianStatusController(request: Request, respons
       data: {
         technician: result.technician,
         revokedSessionsCount: result.revokedSessionsCount,
+      },
+    });
+  } catch (error: unknown) {
+    next(error);
+  }
+}
+
+export async function updateTechnicianController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  const paramsValidation = technicianIdParamSchema.safeParse(request.params);
+
+  if (!paramsValidation.success) {
+    response.status(422).json({
+      success: false,
+      message: 'Validasi parameter gagal',
+      code: 'VALIDATION_ERROR',
+      errors: paramsValidation.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'params',
+        message: issue.message,
+      })),
+    });
+    return;
+  }
+
+  const bodyValidation = updateTechnicianBodySchema.safeParse(request.body);
+
+  if (!bodyValidation.success) {
+    response.status(422).json({
+      success: false,
+      message: 'Validasi data gagal',
+      code: 'VALIDATION_ERROR',
+      errors: bodyValidation.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'body',
+        message: issue.message,
+      })),
+    });
+    return;
+  }
+
+  try {
+    const technician = await updateTechnician({
+      technicianId: paramsValidation.data.technicianId,
+      ...bodyValidation.data,
+    });
+
+    response.status(200).json({
+      success: true,
+      message: 'Detail teknisi berhasil diperbarui',
+      data: {
+        technician,
       },
     });
   } catch (error: unknown) {
