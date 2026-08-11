@@ -24,3 +24,28 @@ export const createCustomerBodySchema = z
   .strict();
 
 export type CreateCustomerBody = z.infer<typeof createCustomerBodySchema>;
+
+export const listCustomerQuerySchema = z
+  .object({
+    page: z.coerce.number().int('Page harus berupa bilangan bulat').min(1, 'Halaman minimal 1').default(1),
+
+    limit: z.coerce.number().int('Limit harus berupa bilangan bulat').min(1, 'Limit minimal 1').max(100, 'Limit maksimal 100').default(10),
+
+    search: z
+      .string()
+      .trim()
+      .max(100, 'Search maksimal 100 karakter')
+      .optional()
+      .transform((value) => (value === '' ? undefined : value)),
+  })
+  .strict();
+
+export type ListCustomerQuery = z.infer<typeof listCustomerQuerySchema>;
+
+export const customerIdParamSchema = z
+  .object({
+    customerId: z.string().uuid('customerId harus berupa UUID yang valid'),
+  })
+  .strict();
+
+export type CustomerIdParams = z.infer<typeof customerIdParamSchema>;
