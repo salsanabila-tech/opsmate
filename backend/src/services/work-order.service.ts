@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-
+import { ListWorkOrdersQuery } from '../validations/work-order.validation.js';
 import { UserRole, WorkOrderStatus } from '../generated/prisma/client.js';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../errors/app-error.js';
@@ -130,4 +130,130 @@ export async function createWorkOrder(input: CreateWorkOrderInput) {
 
     return workOrder;
   });
+}
+
+export async function listWorkOrders(query: ListWorkOrdersQuery) {
+  const { page, limit, search, status, technicianId, customerId, fromDate, toDate } = query;
+
+  const skip = (page - 1) * limit;
+
+  const where = {
+    ...(search
+      ? {
+          OR: [
+            {
+              workOrderNumber: {
+                contains: search,
+                mode: 'insensitive' as const,
+              },
+            },
+            {
+              title: {
+                contains: search,
+                mode: 'insensitive' as const,
+              },
+            },
+          ],
+        }
+      : {}),
+
+    ...(status
+      ? {
+          status,
+        }
+      : {}),
+
+    ...(technicianId
+      ? {
+          technicianId,
+        }
+      : {}),
+
+    ...(customerId
+      ? {
+          customerId,
+        }
+      : {}),
+
+    ...(fromDate || toDate
+      ? {
+          scheduledAt: {
+            ...(fromDate
+              ? {
+                  gte: new Date(fromDate),
+                }
+              : {}),
+
+            ...(toDate
+              ? {
+                  lte: new Date(toDate),
+                }
+              : {}),
+          },
+        }
+      : {}),
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.workOrder.findMany({
+      where,
+      skip,
+      take: limit,
+
+      orderBy: [
+        {
+          scheduledAt: 'asc',
+        },
+        {
+          createdAt: 'desc',
+        },
+      ],
+
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+
+        technician: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            isActive: true,
+          },
+        },
+
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+          },
+        },
+      },
+    }),
+
+    prisma.workOrder.count({
+      where,
+    }),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+  return {
+    items,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
+  };
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { WorkOrderStatus } from '../generated/prisma/client.js';
 
 export const createWorkOrderBodySchema = z
   .object({
@@ -21,4 +22,30 @@ export const createWorkOrderBodySchema = z
   })
   .strict();
 
+export const listWorkOrdersQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    search: z.string().trim().min(1).max(100).optional(),
+    status: z.enum(WorkOrderStatus).optional(),
+    technicianId: z.string().uuid().optional(),
+    customerId: z.string().uuid().optional(),
+    fromDate: z.iso.datetime().optional(),
+    toDate: z.iso.datetime().optional(),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      if (!data.fromDate || !data.toDate) {
+        return true;
+      }
+      return new Date(data.fromDate) <= new Date(data.toDate);
+    },
+    {
+      message: 'fromDate harus lebih kecil atau sama dengan toDate',
+      path: ['fromDate'],
+    },
+  );
+
 export type CreateWorkOrderBody = z.infer<typeof createWorkOrderBodySchema>;
+export type ListWorkOrdersQuery = z.infer<typeof listWorkOrdersQuerySchema>;
