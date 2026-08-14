@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors/app-error.js';
-import { createWorkOrder } from '../services/work-order.service.js';
-import { createWorkOrderBodySchema } from '../validations/work-order.validation.js';
+import { createWorkOrder, listWorkOrders } from '../services/work-order.service.js';
+import { createWorkOrderBodySchema, listWorkOrdersQuerySchema } from '../validations/work-order.validation.js';
 
 export async function createWorkOrderController(request: Request, response: Response, next: NextFunction): Promise<void> {
   const validationResult = createWorkOrderBodySchema.safeParse(request.body);
@@ -38,6 +38,22 @@ export async function createWorkOrderController(request: Request, response: Resp
       success: true,
       message: 'Work order berhasil dibuat',
       data: workOrder,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+export async function listWorkOrderssController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const query = listWorkOrdersQuerySchema.parse(req.query);
+
+    const result = await listWorkOrders(query);
+
+    return res.status(200).json({
+      status: true,
+      message: 'Work Orders berhasil diambil',
+      data: result.items,
+      meta: result.meta,
     });
   } catch (error) {
     next(error);
