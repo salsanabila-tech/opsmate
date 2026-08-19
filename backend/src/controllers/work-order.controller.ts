@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors/app-error.js';
-import { createWorkOrder, listWorkOrders } from '../services/work-order.service.js';
-import { createWorkOrderBodySchema, listWorkOrdersQuerySchema } from '../validations/work-order.validation.js';
+import { createWorkOrder, getWorkOrderDetails, listWorkOrders } from '../services/work-order.service.js';
+import { createWorkOrderBodySchema, listWorkOrdersQuerySchema, workOrderIdParamSchema } from '../validations/work-order.validation.js';
+import { success } from 'zod';
 
 export async function createWorkOrderController(request: Request, response: Response, next: NextFunction): Promise<void> {
   const validationResult = createWorkOrderBodySchema.safeParse(request.body);
@@ -44,10 +45,23 @@ export async function createWorkOrderController(request: Request, response: Resp
   }
 }
 export async function listWorkOrderssController(req: Request, res: Response, next: NextFunction) {
-  try {
-    const query = listWorkOrdersQuerySchema.parse(req.query);
+  const validationResult = listWorkOrdersQuerySchema.safeParse(req.query);
 
-    const result = await listWorkOrders(query);
+  if (!validationResult.success) {
+    res.status(422).json({
+      success: false,
+      message: 'Validasi query gagal',
+      code: 'VALIDATION_ERROR',
+      errors: validationResult.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'query',
+        message: issue.message,
+      })),
+    });
+    return;
+  }
+
+  try {
+    const result = await listWorkOrders(validationResult.data);
 
     return res.status(200).json({
       status: true,
@@ -56,6 +70,37 @@ export async function listWorkOrderssController(req: Request, res: Response, nex
       meta: result.meta,
     });
   } catch (error) {
+    next(error);
+  }
+}
+
+export async function getWorkOrderDetailsController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  const validationResult = workOrderIdParamSchema.safeParse(request.params);
+
+  if (!validationResult.success) {
+    response.status(422).json({
+      success: false,
+      message: 'Validasi parameter gagal',
+      code: 'VALIDATION_ERROR',
+      errors: validationResult.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'params',
+        message: issue.message,
+      })),
+    });
+    return;
+  }
+
+  try {
+    const workOrder = await getWorkOrderDetails({
+      workOrderId: validationResult.data.workOrderId,
+    });
+
+    response.status(200).json({
+      success: true,
+      message: 'Detail work order berhasil diambil',
+      data: workOrder,
+    });
+  } catch (error: unknown) {
     next(error);
   }
 }

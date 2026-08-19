@@ -47,5 +47,12 @@ export const listWorkOrdersQuerySchema = z
     },
   );
 
+export const workOrderIdParamSchema = z
+  .object({
+    workOrderId: z.string().uuid('workOrderId harus berupa UUID yang valid'),
+  })
+  .strict();
+
 export type CreateWorkOrderBody = z.infer<typeof createWorkOrderBodySchema>;
 export type ListWorkOrdersQuery = z.infer<typeof listWorkOrdersQuerySchema>;
+export type workOrderIdParams = z.infer<typeof workOrderIdParamSchema>;
