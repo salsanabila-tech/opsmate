@@ -47,6 +47,30 @@ export const listWorkOrdersQuerySchema = z
     },
   );
 
+export const listTechnicianWorkOrdersQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    search: z.string().trim().min(1).max(100).optional(),
+    status: z.enum(WorkOrderStatus).optional(),
+    fromDate: z.iso.datetime().optional(),
+    toDate: z.iso.datetime().optional(),
+  })
+  .strict()
+  .refine(
+    (data) => {
+      if (!data.fromDate || !data.toDate) {
+        return true;
+      }
+
+      return new Date(data.fromDate) <= new Date(data.toDate);
+    },
+    {
+      message: 'fromDate harus lebih kecil atau sama dengan toDate',
+      path: ['fromDate'],
+    },
+  );
+
 export const workOrderIdParamSchema = z
   .object({
     workOrderId: z.string().uuid('workOrderId harus berupa UUID yang valid'),
@@ -55,4 +79,5 @@ export const workOrderIdParamSchema = z
 
 export type CreateWorkOrderBody = z.infer<typeof createWorkOrderBodySchema>;
 export type ListWorkOrdersQuery = z.infer<typeof listWorkOrdersQuerySchema>;
+export type ListTechnicianWorkOrdersQuerySchema = z.infer<typeof listTechnicianWorkOrdersQuerySchema>;
 export type workOrderIdParams = z.infer<typeof workOrderIdParamSchema>;
