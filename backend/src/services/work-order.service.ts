@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto';
-import { ListWorkOrdersQuery } from '../validations/work-order.validation.js';
+import { ListTechnicianWorkOrdersQuerySchema, ListWorkOrdersQuery } from '../validations/work-order.validation.js';
 import { UserRole, WorkOrderStatus } from '../generated/prisma/client.js';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../errors/app-error.js';
-import { tr } from 'zod/locales';
+import { meta } from 'zod/v4/core';
 
 function generateWorkOrderNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -24,6 +24,10 @@ type CreateWorkOrderInput = {
 
 type GetWorkOrderDetailsInput = {
   workOrderId: string;
+};
+
+type ListTechnicianWorkOrdersInput = ListTechnicianWorkOrdersQuerySchema & {
+  technicianId: string;
 };
 
 export async function createWorkOrder(input: CreateWorkOrderInput) {
@@ -254,6 +258,115 @@ export async function listWorkOrders(query: ListWorkOrdersQuery) {
 
   return {
     items,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages,
+    },
+  };
+}
+
+export async function listTechnicianWorkOrders(input: ListTechnicianWorkOrdersInput) {
+  const { technicianId, page, limit, search, status, fromDate, toDate } = input;
+
+  const skip = (page - 1) * limit;
+
+  const where = {
+    technicianId,
+
+    ...(search
+      ? {
+          OR: [
+            {
+              workOrderNumber: {
+                contains: search,
+                mode: 'insensitive' as const,
+              },
+            },
+            {
+              title: {
+                contains: search,
+                mode: 'insensitive' as const,
+              },
+            },
+          ],
+        }
+      : {}),
+
+    ...(status
+      ? {
+          status,
+        }
+      : {}),
+
+    ...(fromDate || toDate
+      ? {
+          scheduledAt: {
+            ...(fromDate
+              ? {
+                  gte: new Date(fromDate),
+                }
+              : {}),
+
+            ...(toDate
+              ? {
+                  lte: new Date(toDate),
+                }
+              : {}),
+          },
+        }
+      : {}),
+  };
+
+  const [items, total] = await Promise.all([
+    prisma.workOrder.findMany({
+      where,
+
+      skip,
+
+      take: limit,
+
+      orderBy: [
+        {
+          scheduledAt: 'asc',
+        },
+        {
+          createdAt: 'desc',
+        },
+      ],
+
+      select: {
+        id: true,
+        workOrderNumber: true,
+        title: true,
+        description: true,
+        scheduledAt: true,
+        status: true,
+        completedAt: true,
+        updatedAt: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            address: true,
+          },
+        },
+      },
+    }),
+
+    prisma.workOrder.count({
+      where,
+    }),
+  ]);
+
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+
+  return {
+    items,
+
     meta: {
       page,
       limit,
