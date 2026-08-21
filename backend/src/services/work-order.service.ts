@@ -3,7 +3,7 @@ import { ListTechnicianWorkOrdersQuerySchema, ListWorkOrdersQuery } from '../val
 import { UserRole, WorkOrderStatus } from '../generated/prisma/client.js';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../errors/app-error.js';
-import { meta } from 'zod/v4/core';
+import { tr } from 'zod/locales';
 
 function generateWorkOrderNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -24,6 +24,11 @@ type CreateWorkOrderInput = {
 
 type GetWorkOrderDetailsInput = {
   workOrderId: string;
+};
+
+type GetTechnicianWorkOrderDetailsInput = {
+  workOrderId: string;
+  technicianId: string;
 };
 
 type ListTechnicianWorkOrdersInput = ListTechnicianWorkOrdersQuerySchema & {
@@ -373,6 +378,106 @@ export async function listTechnicianWorkOrders(input: ListTechnicianWorkOrdersIn
       total,
       totalPages,
     },
+  };
+}
+
+export async function getTechnicianWorkOrderDetails(input: GetTechnicianWorkOrderDetailsInput) {
+  const workOrder = await prisma.workOrder.findFirst({
+    where: {
+      id: input.workOrderId,
+      technicianId: input.technicianId,
+    },
+
+    select: {
+      id: true,
+      workOrderNumber: true,
+      title: true,
+      description: true,
+      scheduledAt: true,
+      status: true,
+      completedAt: true,
+      createdAt: true,
+      updatedAt: true,
+
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          address: true,
+          notes: true,
+        },
+      },
+
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+
+      statusHistories: {
+        orderBy: {
+          createdAt: 'asc',
+        },
+
+        select: {
+          id: true,
+          previousStatus: true,
+          newStatus: true,
+          notes: true,
+          createdAt: true,
+
+          changedBy: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      },
+
+      attachments: {
+        orderBy: {
+          createdAt: 'desc',
+        },
+
+        select: {
+          id: true,
+          fileUrl: true,
+          fileName: true,
+          fileType: true,
+          fileSize: true,
+          attachmentType: true,
+          description: true,
+          createdAt: true,
+
+          uploadedBy: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!workOrder) {
+    throw new AppError(404, 'Work order tidak ditemukan', 'WORK_ORDER_NOT_FOUND');
+  }
+
+  return {
+    ...workOrder,
+
+    attachments: workOrder.attachments.map((attachment) => ({
+      ...attachment,
+      fileSize: attachment.fileSize.toString(),
+    })),
   };
 }
 
