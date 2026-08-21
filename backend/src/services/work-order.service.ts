@@ -1,8 +1,17 @@
+import { mkdir, unlink, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { fileTypeFromBuffer } from 'file-type';
 import { randomUUID } from 'crypto';
-import { ListTechnicianWorkOrdersQuerySchema, ListWorkOrdersQuery, workOrderIdParamSchema } from '../validations/work-order.validation.js';
-import { UserRole, WorkOrderStatus } from '../generated/prisma/client.js';
+import { ListTechnicianWorkOrdersQuerySchema, ListWorkOrdersQuery } from '../validations/work-order.validation.js';
+import { AttachmentType, UserRole, WorkOrderStatus } from '../generated/prisma/client.js';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../errors/app-error.js';
+
+const currentFilePath = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentFilePath);
+const backendRootDirectory = path.resolve(currentDirectory, '../..');
+const workOrderUploadDirectory = path.join(backendRootDirectory, 'uploads', 'work-orders');
 
 function generateWorkOrderNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -41,11 +50,32 @@ type ListTechnicianWorkOrdersInput = ListTechnicianWorkOrdersQuerySchema & {
   technicianId: string;
 };
 
+type CreateTechnicianWorkOrderAttachmentInput = {
+  workOrderId: string;
+  technicianId: string;
+  attachmentType: AttachmentType;
+  description?: string;
+  file: {
+    buffer: Buffer;
+    originalName: string;
+    size: number;
+  };
+};
+
 const technicianWorkOrderStatusTransitions: Partial<Record<WorkOrderStatus, WorkOrderStatus>> = {
   [WorkOrderStatus.ASSIGNED]: WorkOrderStatus.ON_THE_WAY,
   [WorkOrderStatus.ON_THE_WAY]: WorkOrderStatus.IN_PROGRESS,
   [WorkOrderStatus.IN_PROGRESS]: WorkOrderStatus.COMPLETED,
 };
+
+function sanitizeOriginalFileName(originalName: string): string {
+  const cleanName = path
+    .basename(originalName)
+    .replace(/[\u0000-\u007F]/g, '')
+    .trim();
+
+  return (cleanName || 'attachment').slice(0, 255);
+}
 
 export async function createWorkOrder(input: CreateWorkOrderInput) {
   return prisma.$transaction(async (transaction) => {
@@ -686,4 +716,94 @@ export async function getWorkOrderDetails(input: GetWorkOrderDetailsInput) {
       fileSize: attachment.fileSize.toString(),
     })),
   };
+}
+
+export async function createTechnicianWorkOrderAttachment(input: CreateTechnicianWorkOrderAttachmentInput) {
+  const workOrder = await prisma.workOrder.findFirst({
+    where: {
+      id: input.workOrderId,
+      technicianId: input.technicianId,
+    },
+
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (!workOrder) {
+    throw new AppError(404, 'Work order tidak ditemukan', 'WORK_ORDER_NOT_FOUND');
+  }
+
+  const detectedFileType = await fileTypeFromBuffer(input.file.buffer);
+
+  const allowedActualMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+  if (!detectedFileType || !allowedActualMimeTypes.has(detectedFileType.mime)) {
+    throw new AppError(415, 'Isi file harus berupa JPEG, PNG, atau WEBP yang valid', 'UNSUPPORTED_ATTACHMENT_FILE_TYPE');
+  }
+
+  await mkdir(workOrderUploadDirectory, {
+    recursive: true,
+  });
+
+  const storedFileName = `${randomUUID()}.${detectedFileType.ext}`;
+
+  const absoluteFilePath = path.join(workOrderUploadDirectory, storedFileName);
+
+  await writeFile(absoluteFilePath, input.file.buffer);
+
+  const fileUrl = `/uploads/work-orders/${storedFileName}`;
+
+  try {
+    const attachment = await prisma.workOrderAttachment.create({
+      data: {
+        workOrderId: workOrder.id,
+
+        uploadedById: input.technicianId,
+
+        fileUrl,
+
+        fileName: sanitizeOriginalFileName(input.file.originalName),
+
+        fileType: detectedFileType.mime,
+
+        fileSize: BigInt(input.file.size),
+
+        attachmentType: input.attachmentType,
+
+        description: input.description ?? null,
+      },
+
+      select: {
+        id: true,
+        workOrderId: true,
+        fileUrl: true,
+        fileName: true,
+        fileType: true,
+        fileSize: true,
+        attachmentType: true,
+        description: true,
+        createdAt: true,
+
+        uploadedBy: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...attachment,
+
+      fileSize: attachment.fileSize.toString(),
+    };
+  } catch (error) {
+    await unlink(absoluteFilePath).catch(() => undefined);
+
+    throw error;
+  }
 }

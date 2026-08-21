@@ -6,3 +6,6 @@ node_modules
 
 # Prisma Generated Client
 backend/src/generated/prisma/
+
+# Local uploaded files
+backend/uploads/
