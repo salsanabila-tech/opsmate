@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { WorkOrderStatus } from '../generated/prisma/client.js';
-import { stat } from 'fs';
+import { AttachmentType, WorkOrderStatus } from '../generated/prisma/client.js';
 
 export const createWorkOrderBodySchema = z
   .object({
@@ -87,8 +86,17 @@ export const updateTechnicianWorkOrderStatusBodySchema = z
   })
   .strict();
 
+export const createTechnicianWorkOrderAttachmentBodySchema = z
+  .object({
+    AttachmentType: z.enum(AttachmentType).default(AttachmentType.OTHER),
+
+    description: z.string().trim().min(1, 'Deskripsi tidak boleh kosong').max(1000, 'Deskripsi maksimal 1000 karakter').optional(),
+  })
+  .strict();
+
 export type CreateWorkOrderBody = z.infer<typeof createWorkOrderBodySchema>;
 export type ListWorkOrdersQuery = z.infer<typeof listWorkOrdersQuerySchema>;
 export type ListTechnicianWorkOrdersQuerySchema = z.infer<typeof listTechnicianWorkOrdersQuerySchema>;
 export type workOrderIdParams = z.infer<typeof workOrderIdParamSchema>;
 export type UpdateTechnicianWorkOrderStatusBody = z.infer<typeof updateTechnicianWorkOrderStatusBodySchema>;
+export type CreateTechnicianWorkOrderAttachmentBody = z.infer<typeof createTechnicianWorkOrderAttachmentBodySchema>;
