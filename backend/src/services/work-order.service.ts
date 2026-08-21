@@ -71,10 +71,26 @@ const technicianWorkOrderStatusTransitions: Partial<Record<WorkOrderStatus, Work
 function sanitizeOriginalFileName(originalName: string): string {
   const cleanName = path
     .basename(originalName)
-    .replace(/[\u0000-\u007F]/g, '')
+    .replace(/[\u0000-\u001F\u007F]/g, '')
     .trim();
 
   return (cleanName || 'attachment').slice(0, 255);
+}
+
+const technicianOtherAttachmentAllowedStatuses = new Set<WorkOrderStatus>([WorkOrderStatus.ASSIGNED, WorkOrderStatus.ON_THE_WAY, WorkOrderStatus.IN_PROGRESS]);
+
+function assertTechnicianAttachmentAllowed(status: WorkOrderStatus, attachmentType: AttachmentType): void {
+  if (attachmentType === AttachmentType.BEFORE && status !== WorkOrderStatus.ON_THE_WAY) {
+    throw new AppError(409, 'Evidence BEFORE hanya dapat diunggah saat status ON_THE_WAY', 'BEFORE_EVIDENCE_NOT_ALLOWED');
+  }
+
+  if (attachmentType === AttachmentType.AFTER && status !== WorkOrderStatus.IN_PROGRESS) {
+    throw new AppError(409, 'Evidence AFTER hanya dapat diunggah saat status IN_PROGRESS', 'AFTER_EVIDENCE_NOT_ALLOWED');
+  }
+
+  if (attachmentType === AttachmentType.OTHER && !technicianOtherAttachmentAllowedStatuses.has(status)) {
+    throw new AppError(409, 'Attachment tidak dapat diunggah pada status work order saat ini', 'ATTACHMENT_UPLOAD_NOT_ALLOWED');
+  }
 }
 
 export async function createWorkOrder(input: CreateWorkOrderInput) {
@@ -548,6 +564,32 @@ export async function updateTechnicianWorkOrderStatus(input: UpdateTechnicianWor
       throw new AppError(409, 'Perubahan status dari ${workOrder.status} ke ${input.status} tidak diizinkan', 'INVALID_STATUS_TRANSITION');
     }
 
+    if (workOrder.status === WorkOrderStatus.ON_THE_WAY && input.status === WorkOrderStatus.IN_PROGRESS) {
+      const beforeEvidenceCount = await transaction.workOrderAttachment.count({
+        where: {
+          workOrderId: workOrder.id,
+          attachmentType: AttachmentType.BEFORE,
+        },
+      });
+
+      if (beforeEvidenceCount < 1) {
+        throw new AppError(409, 'Evidence BEFORE wajib diunggah sebelum memulai pekerjaan', 'BEFORE_EVIDANCE_REQUIRED');
+      }
+    }
+
+    if (workOrder.status === WorkOrderStatus.IN_PROGRESS && input.status === WorkOrderStatus.COMPLETED) {
+      const afterEvidenceCount = await transaction.workOrderAttachment.count({
+        where: {
+          workOrderId: workOrder.id,
+
+          attachmentType: AttachmentType.AFTER,
+        },
+      });
+
+      if (afterEvidenceCount < 1) {
+        throw new AppError(409, 'Evidence AFTER wajib diunggah sebelum menyelesaikan pekerjaan', 'AFTER_EVIDENCE_REQUIRED');
+      }
+    }
     const completedAt = input.status === WorkOrderStatus.COMPLETED ? new Date() : null;
     const updateResult = await transaction.workOrder.updateMany({
       where: {
@@ -734,6 +776,8 @@ export async function createTechnicianWorkOrderAttachment(input: CreateTechnicia
   if (!workOrder) {
     throw new AppError(404, 'Work order tidak ditemukan', 'WORK_ORDER_NOT_FOUND');
   }
+
+  assertTechnicianAttachmentAllowed(workOrder.status, input.attachmentType);
 
   const detectedFileType = await fileTypeFromBuffer(input.file.buffer);
 
