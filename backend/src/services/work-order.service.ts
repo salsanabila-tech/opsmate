@@ -1,9 +1,8 @@
 import { randomUUID } from 'crypto';
-import { ListTechnicianWorkOrdersQuerySchema, ListWorkOrdersQuery } from '../validations/work-order.validation.js';
+import { ListTechnicianWorkOrdersQuerySchema, ListWorkOrdersQuery, workOrderIdParamSchema } from '../validations/work-order.validation.js';
 import { UserRole, WorkOrderStatus } from '../generated/prisma/client.js';
 import { prisma } from '../lib/prisma.js';
 import { AppError } from '../errors/app-error.js';
-import { tr } from 'zod/locales';
 
 function generateWorkOrderNumber(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -31,8 +30,21 @@ type GetTechnicianWorkOrderDetailsInput = {
   technicianId: string;
 };
 
+type UpdateTechnicianWorkOrderStatusInput = {
+  workOrderId: string;
+  technicianId: string;
+  status: WorkOrderStatus;
+  notes?: string;
+};
+
 type ListTechnicianWorkOrdersInput = ListTechnicianWorkOrdersQuerySchema & {
   technicianId: string;
+};
+
+const technicianWorkOrderStatusTransitions: Partial<Record<WorkOrderStatus, WorkOrderStatus>> = {
+  [WorkOrderStatus.ASSIGNED]: WorkOrderStatus.ON_THE_WAY,
+  [WorkOrderStatus.ON_THE_WAY]: WorkOrderStatus.IN_PROGRESS,
+  [WorkOrderStatus.IN_PROGRESS]: WorkOrderStatus.COMPLETED,
 };
 
 export async function createWorkOrder(input: CreateWorkOrderInput) {
@@ -479,6 +491,95 @@ export async function getTechnicianWorkOrderDetails(input: GetTechnicianWorkOrde
       fileSize: attachment.fileSize.toString(),
     })),
   };
+}
+
+export async function updateTechnicianWorkOrderStatus(input: UpdateTechnicianWorkOrderStatusInput) {
+  return prisma.$transaction(async (transaction) => {
+    const workOrder = await transaction.workOrder.findFirst({
+      where: {
+        id: input.workOrderId,
+        technicianId: input.technicianId,
+      },
+
+      select: {
+        id: true,
+        workOrderNumber: true,
+        status: true,
+      },
+    });
+
+    if (!workOrder) {
+      throw new AppError(404, 'Work order tidak ditemukan', 'WORK_ORDER_NOT_FOUND');
+    }
+
+    const allowedNextStatus = technicianWorkOrderStatusTransitions[workOrder.status];
+
+    if (!allowedNextStatus || allowedNextStatus !== input.status) {
+      throw new AppError(409, 'Perubahan status dari ${workOrder.status} ke ${input.status} tidak diizinkan', 'INVALID_STATUS_TRANSITION');
+    }
+
+    const completedAt = input.status === WorkOrderStatus.COMPLETED ? new Date() : null;
+    const updateResult = await transaction.workOrder.updateMany({
+      where: {
+        id: workOrder.id,
+        technicianId: input.technicianId,
+        status: workOrder.status,
+      },
+
+      data: {
+        status: input.status,
+        completedAt,
+      },
+    });
+
+    if (updateResult.count !== 1) {
+      throw new AppError(409, 'Status work order telah berubah. Silahkan muat ulang data.', 'WORK_ORDER_STATUS_CHANGED');
+    }
+
+    await transaction.workOrderStatusHistory.create({
+      data: {
+        workOrderId: workOrder.id,
+        previousStatus: workOrder.status,
+        newStatus: input.status,
+        changedById: input.technicianId,
+        notes: input.notes ?? null,
+      },
+    });
+
+    const updatedWorkOrder = await transaction.workOrder.findUnique({
+      where: {
+        id: workOrder.id,
+      },
+
+      select: {
+        id: true,
+        workOrderNumber: true,
+        title: true,
+        description: true,
+        scheduledAt: true,
+        status: true,
+        completedAt: true,
+        createdAt: true,
+        updatedAt: true,
+
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            address: true,
+          },
+        },
+      },
+    });
+
+    if (!updatedWorkOrder) {
+      throw new AppError(404, 'Work order tidak ditemukan', 'WORK_ORDER_NOT_FOUND');
+    }
+
+    return updatedWorkOrder;
+  });
 }
 
 export async function getWorkOrderDetails(input: GetWorkOrderDetailsInput) {
