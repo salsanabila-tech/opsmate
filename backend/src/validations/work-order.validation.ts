@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { WorkOrderStatus } from '../generated/prisma/client.js';
+import { stat } from 'fs';
 
 export const createWorkOrderBodySchema = z
   .object({
@@ -77,7 +78,17 @@ export const workOrderIdParamSchema = z
   })
   .strict();
 
+const technicianWorkOrderStatusValues = [WorkOrderStatus.ON_THE_WAY, WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.COMPLETED] as const;
+
+export const updateTechnicianWorkOrderStatusBodySchema = z
+  .object({
+    status: z.enum(technicianWorkOrderStatusValues),
+    notes: z.string().trim().min(1, 'Catatan tidak boleh kosong').max(1000, 'Catatan maksimal 1000 karakter').optional(),
+  })
+  .strict();
+
 export type CreateWorkOrderBody = z.infer<typeof createWorkOrderBodySchema>;
 export type ListWorkOrdersQuery = z.infer<typeof listWorkOrdersQuerySchema>;
 export type ListTechnicianWorkOrdersQuerySchema = z.infer<typeof listTechnicianWorkOrdersQuerySchema>;
 export type workOrderIdParams = z.infer<typeof workOrderIdParamSchema>;
+export type UpdateTechnicianWorkOrderStatusBody = z.infer<typeof updateTechnicianWorkOrderStatusBodySchema>;
