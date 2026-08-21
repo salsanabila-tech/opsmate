@@ -1,8 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors/app-error.js';
-import { createWorkOrder, getWorkOrderDetails, listTechnicianWorkOrders, listWorkOrders } from '../services/work-order.service.js';
+import { createWorkOrder, getTechnicianWorkOrderDetails, getWorkOrderDetails, listTechnicianWorkOrders, listWorkOrders } from '../services/work-order.service.js';
 import { createWorkOrderBodySchema, listTechnicianWorkOrdersQuerySchema, listWorkOrdersQuerySchema, workOrderIdParamSchema } from '../validations/work-order.validation.js';
-import { success } from 'zod';
 
 export async function createWorkOrderController(request: Request, response: Response, next: NextFunction): Promise<void> {
   const validationResult = createWorkOrderBodySchema.safeParse(request.body);
@@ -44,7 +43,7 @@ export async function createWorkOrderController(request: Request, response: Resp
     next(error);
   }
 }
-export async function listWorkOrderssController(req: Request, res: Response, next: NextFunction) {
+export async function listWorkOrdersController(req: Request, res: Response, next: NextFunction) {
   const validationResult = listWorkOrdersQuerySchema.safeParse(req.query);
 
   if (!validationResult.success) {
@@ -64,7 +63,7 @@ export async function listWorkOrderssController(req: Request, res: Response, nex
     const result = await listWorkOrders(validationResult.data);
 
     return res.status(200).json({
-      status: true,
+      success: true,
       message: 'Work Orders berhasil diambil',
       data: result.items,
       meta: result.meta,
@@ -117,6 +116,44 @@ export async function listTechnicianWorkOrdersController(request: Request, respo
       meta: result.meta,
     });
   } catch (error) {
+    next(error);
+  }
+}
+
+export async function getTechnicianWorkOrderDetailsController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  const validationResult = workOrderIdParamSchema.safeParse(request.params);
+
+  if (!validationResult.success) {
+    response.status(422).json({
+      success: false,
+      message: 'Validasi parameter gagal',
+      code: 'VALIDATION_ERROR',
+      errors: validationResult.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'params',
+        message: issue.message,
+      })),
+    });
+    return;
+  }
+
+  if (!request.auth) {
+    next(new AppError(401, 'Autentikasi diperlukan', 'AUTHENTICATION_REQUIRED'));
+
+    return;
+  }
+
+  try {
+    const workOrder = await getTechnicianWorkOrderDetails({
+      workOrderId: validationResult.data.workOrderId,
+      technicianId: request.auth.userId,
+    });
+
+    response.status(200).json({
+      success: true,
+      message: 'Detail tugas teknisi berhasil diambil',
+      data: workOrder,
+    });
+  } catch (error: unknown) {
     next(error);
   }
 }
