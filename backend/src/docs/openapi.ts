@@ -7,7 +7,7 @@ const openApiSpec = {
     title: 'OpsMate API',
     version: '1.0.0',
     description:
-      'Dokumentasi interaktif API OpsMate. Login sebagai ADMIN, salin `accessToken`, lalu klik **Authorize** dan isi dengan format `Bearer <accessToken>` untuk mencoba endpoint yang dilindungi.',
+      'Dokumentasi interaktif API OpsMate. Login sebagai ADMIN atau TECHNICIAN, salin `accessToken`, lalu klik **Authorize** dan isi dengan format `Bearer <accessToken>` untuk mencoba endpoint yang sesuai dengan peran pengguna.',
   },
   servers: [
     {
@@ -20,6 +20,7 @@ const openApiSpec = {
     { name: 'Authentication', description: 'Login, refresh token, dan sesi pengguna.' },
     { name: 'Customers', description: 'Manajemen customer. Hanya ADMIN.' },
     { name: 'Work Orders', description: 'Manajemen work order. Hanya ADMIN.' },
+    { name: 'Technician Work Orders', description: 'Daftar tugas, detail, status, dan evidence work order milik TECHNICIAN.' },
     { name: 'Technicians', description: 'Manajemen akun teknisi. Hanya ADMIN.' },
   ],
   paths: {
@@ -293,6 +294,156 @@ const openApiSpec = {
         },
       },
     },
+    '/work-orders/my': {
+      get: {
+        tags: ['Technician Work Orders'],
+        summary: 'Daftar tugas teknisi aktif',
+        description:
+          'Hanya dapat diakses oleh TECHNICIAN. Identitas teknisi diambil dari access token sehingga respons hanya berisi work order yang ditugaskan kepadanya.',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { $ref: '#/components/parameters/Page' },
+          { $ref: '#/components/parameters/Limit' },
+          {
+            name: 'search',
+            in: 'query',
+            description: 'Cari berdasarkan nomor work order atau judul.',
+            schema: { type: 'string', minLength: 1, maxLength: 100 },
+          },
+          {
+            name: 'status',
+            in: 'query',
+            description: 'Filter status work order.',
+            schema: { $ref: '#/components/schemas/WorkOrderStatus' },
+          },
+          {
+            name: 'fromDate',
+            in: 'query',
+            description: 'Batas awal scheduledAt (ISO 8601). Harus kurang dari atau sama dengan toDate.',
+            schema: { type: 'string', format: 'date-time' },
+          },
+          {
+            name: 'toDate',
+            in: 'query',
+            description: 'Batas akhir scheduledAt (ISO 8601).',
+            schema: { type: 'string', format: 'date-time' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Daftar work order milik teknisi aktif.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/TechnicianWorkOrderListResponse' } } },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/TechnicianOnly' },
+          '422': { $ref: '#/components/responses/ValidationQueryError' },
+        },
+      },
+    },
+    '/work-orders/my/{workOrderId}': {
+      get: {
+        tags: ['Technician Work Orders'],
+        summary: 'Detail tugas teknisi',
+        description:
+          'Hanya dapat diakses oleh TECHNICIAN yang ditugaskan pada work order tersebut. Work order yang tidak ada atau bukan milik teknisi aktif sama-sama menghasilkan 404.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: '#/components/parameters/WorkOrderId' }],
+        responses: {
+          '200': {
+            description: 'Detail tugas beserta customer, riwayat status, dan attachment.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/TechnicianWorkOrderDetailResponse' } } },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/TechnicianOnly' },
+          '404': { $ref: '#/components/responses/WorkOrderNotFound' },
+          '422': { $ref: '#/components/responses/ValidationParameterError' },
+        },
+      },
+    },
+    '/work-orders/my/{workOrderId}/status': {
+      patch: {
+        tags: ['Technician Work Orders'],
+        summary: 'Perbarui status tugas teknisi',
+        description:
+          'Hanya dapat diakses oleh TECHNICIAN pemilik tugas. Urutan yang diizinkan adalah `ASSIGNED` → `ON_THE_WAY` → `IN_PROGRESS` → `COMPLETED`. Minimal satu evidence `BEFORE` wajib tersedia sebelum masuk ke `IN_PROGRESS`, dan evidence `AFTER` sebelum masuk ke `COMPLETED`.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: '#/components/parameters/WorkOrderId' }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UpdateTechnicianWorkOrderStatusRequest' },
+              example: {
+                status: 'ON_THE_WAY',
+                notes: 'Teknisi sedang menuju lokasi customer.',
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Status work order berhasil diperbarui.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/TechnicianWorkOrderStatusResponse' } } },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/TechnicianOnly' },
+          '404': { $ref: '#/components/responses/WorkOrderNotFound' },
+          '409': { $ref: '#/components/responses/WorkOrderStatusConflict' },
+          '422': { $ref: '#/components/responses/ValidationError' },
+        },
+      },
+    },
+    '/work-orders/my/{workOrderId}/attachments': {
+      post: {
+        tags: ['Technician Work Orders'],
+        summary: 'Unggah attachment atau evidence tugas',
+        description:
+          'Hanya dapat diakses oleh TECHNICIAN pemilik tugas. File harus JPEG, PNG, atau WEBP dengan ukuran maksimal 5 MB. `BEFORE` hanya boleh saat status `ON_THE_WAY`, `AFTER` hanya saat `IN_PROGRESS`, sedangkan `OTHER` boleh saat `ASSIGNED`, `ON_THE_WAY`, atau `IN_PROGRESS`.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: '#/components/parameters/WorkOrderId' }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: { $ref: '#/components/schemas/CreateWorkOrderAttachmentRequest' },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Attachment berhasil diunggah.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/WorkOrderAttachmentResponse' } } },
+          },
+          '400': { $ref: '#/components/responses/InvalidFileUpload' },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/TechnicianOnly' },
+          '404': { $ref: '#/components/responses/WorkOrderNotFound' },
+          '409': { $ref: '#/components/responses/AttachmentUploadConflict' },
+          '413': { $ref: '#/components/responses/AttachmentTooLarge' },
+          '415': { $ref: '#/components/responses/UnsupportedAttachmentType' },
+          '422': { $ref: '#/components/responses/AttachmentValidationError' },
+        },
+      },
+    },
+    '/work-orders/{workOrderId}': {
+      get: {
+        tags: ['Work Orders'],
+        summary: 'Detail work order',
+        description: 'Hanya dapat diakses oleh ADMIN.',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ $ref: '#/components/parameters/WorkOrderId' }],
+        responses: {
+          '200': {
+            description: 'Detail work order beserta customer, teknisi, pembuat, riwayat status, dan attachment.',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/WorkOrderDetailResponse' } } },
+          },
+          '401': { $ref: '#/components/responses/Unauthorized' },
+          '403': { $ref: '#/components/responses/AdminOnly' },
+          '404': { $ref: '#/components/responses/WorkOrderNotFound' },
+          '422': { $ref: '#/components/responses/ValidationParameterError' },
+        },
+      },
+    },
     '/users/technicians': {
       get: {
         tags: ['Technicians'],
@@ -467,6 +618,13 @@ const openApiSpec = {
         description: 'UUID teknisi.',
         schema: { type: 'string', format: 'uuid', example: uuidExample },
       },
+      WorkOrderId: {
+        name: 'workOrderId',
+        in: 'path',
+        required: true,
+        description: 'UUID work order.',
+        schema: { type: 'string', format: 'uuid', example: uuidExample },
+      },
     },
     responses: {
       Unauthorized: {
@@ -475,6 +633,10 @@ const openApiSpec = {
       },
       AdminOnly: {
         description: 'Akun tidak memiliki peran ADMIN.',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      TechnicianOnly: {
+        description: 'Akun tidak memiliki peran TECHNICIAN.',
         content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
       },
       ValidationError: {
@@ -512,6 +674,42 @@ const openApiSpec = {
       TechnicianInactive: {
         description: 'Teknisi yang dipilih tidak aktif.',
         content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      WorkOrderNotFound: {
+        description: 'Work order tidak ditemukan atau bukan milik teknisi aktif.',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      WorkOrderStatusConflict: {
+        description:
+          'Transisi status tidak diizinkan, status telah berubah, atau evidence wajib belum tersedia. Kode yang mungkin: `INVALID_STATUS_TRANSITION`, `WORK_ORDER_STATUS_CHANGED`, `BEFORE_EVIDANCE_REQUIRED`, atau `AFTER_EVIDENCE_REQUIRED`.',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      AttachmentUploadConflict: {
+        description:
+          'Jenis attachment tidak boleh diunggah pada status work order saat ini. Kode yang mungkin: `BEFORE_EVIDENCE_NOT_ALLOWED`, `AFTER_EVIDENCE_NOT_ALLOWED`, atau `ATTACHMENT_UPLOAD_NOT_ALLOWED`.',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      InvalidFileUpload: {
+        description: 'Data upload multipart tidak valid.',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      AttachmentTooLarge: {
+        description: 'Ukuran file attachment melebihi batas 5 MB.',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      UnsupportedAttachmentType: {
+        description: 'MIME type atau isi file bukan JPEG, PNG, atau WEBP yang valid.',
+        content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+      },
+      AttachmentValidationError: {
+        description: 'Parameter/body tidak valid atau field file tidak disertakan.',
+        content: {
+          'application/json': {
+            schema: {
+              oneOf: [{ $ref: '#/components/schemas/ValidationErrorResponse' }, { $ref: '#/components/schemas/ErrorResponse' }],
+            },
+          },
+        },
       },
       EmailAlreadyExists: {
         description: 'Email telah digunakan oleh pengguna lain.',
@@ -846,6 +1044,13 @@ const openApiSpec = {
       WorkOrderStatus: {
         type: 'string',
         enum: ['PENDING', 'ASSIGNED', 'ON_THE_WAY', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
+        description:
+          'Workflow teknisi berjalan berurutan dari ASSIGNED ke ON_THE_WAY, IN_PROGRESS, lalu COMPLETED.',
+      },
+      AttachmentType: {
+        type: 'string',
+        enum: ['BEFORE', 'AFTER', 'OTHER'],
+        description: 'Kategori evidence sebelum pekerjaan, sesudah pekerjaan, atau attachment pendukung lainnya.',
       },
       WorkOrderCustomer: {
         type: 'object',
@@ -856,6 +1061,9 @@ const openApiSpec = {
           phone: { type: 'string', example: '081234567890' },
           email: { type: 'string', format: 'email', nullable: true, example: 'budi@example.com' },
           address: { type: 'string', example: 'Jl. Merdeka No. 10, Jakarta' },
+          notes: { type: 'string', nullable: true, example: 'Hubungi sebelum datang.' },
+          createdAt: { type: 'string', format: 'date-time', example: isoDateExample },
+          updatedAt: { type: 'string', format: 'date-time', example: isoDateExample },
         },
       },
       WorkOrderTechnician: {
@@ -867,7 +1075,10 @@ const openApiSpec = {
           name: { type: 'string', example: 'Siti Aminah' },
           email: { type: 'string', format: 'email', example: 'siti@opsmate.test' },
           phone: { type: 'string', nullable: true, example: '081298765432' },
+          role: { type: 'string', enum: ['TECHNICIAN'], example: 'TECHNICIAN' },
           isActive: { type: 'boolean', example: true },
+          createdAt: { type: 'string', format: 'date-time', example: isoDateExample },
+          updatedAt: { type: 'string', format: 'date-time', example: isoDateExample },
         },
       },
       WorkOrderCreatedBy: {
@@ -879,6 +1090,53 @@ const openApiSpec = {
           email: { type: 'string', format: 'email', example: 'admin@opsmate.test' },
           role: { $ref: '#/components/schemas/UserRole' },
           isActive: { type: 'boolean', example: true },
+        },
+      },
+      WorkOrderActor: {
+        type: 'object',
+        required: ['id', 'name', 'role'],
+        properties: {
+          id: { type: 'string', format: 'uuid', example: uuidExample },
+          name: { type: 'string', example: 'Siti Aminah' },
+          email: { type: 'string', format: 'email', example: 'siti@opsmate.test' },
+          role: { $ref: '#/components/schemas/UserRole' },
+        },
+      },
+      WorkOrderStatusHistory: {
+        type: 'object',
+        required: ['id', 'previousStatus', 'newStatus', 'notes', 'createdAt', 'changedBy'],
+        properties: {
+          id: { type: 'string', format: 'uuid', example: uuidExample },
+          previousStatus: {
+            allOf: [{ $ref: '#/components/schemas/WorkOrderStatus' }],
+            nullable: true,
+            example: 'ASSIGNED',
+          },
+          newStatus: { $ref: '#/components/schemas/WorkOrderStatus' },
+          notes: { type: 'string', nullable: true, example: 'Teknisi sedang menuju lokasi customer.' },
+          createdAt: { type: 'string', format: 'date-time', example: isoDateExample },
+          changedBy: { $ref: '#/components/schemas/WorkOrderActor' },
+        },
+      },
+      WorkOrderAttachment: {
+        type: 'object',
+        required: ['id', 'fileUrl', 'fileName', 'fileType', 'fileSize', 'attachmentType', 'description', 'createdAt', 'uploadedBy'],
+        properties: {
+          id: { type: 'string', format: 'uuid', example: uuidExample },
+          workOrderId: { type: 'string', format: 'uuid', example: uuidExample },
+          fileUrl: { type: 'string', example: '/uploads/work-orders/evidence.webp' },
+          fileName: { type: 'string', example: 'kondisi-ac.webp' },
+          fileType: { type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp'], example: 'image/webp' },
+          fileSize: {
+            type: 'string',
+            pattern: '^\\d+$',
+            description: 'Ukuran file dalam byte. Dikembalikan sebagai string karena disimpan sebagai BigInt.',
+            example: '245760',
+          },
+          attachmentType: { $ref: '#/components/schemas/AttachmentType' },
+          description: { type: 'string', nullable: true, example: 'Kondisi unit sebelum diperbaiki.' },
+          createdAt: { type: 'string', format: 'date-time', example: isoDateExample },
+          uploadedBy: { $ref: '#/components/schemas/WorkOrderActor' },
         },
       },
       WorkOrder: {
@@ -899,6 +1157,41 @@ const openApiSpec = {
           createdBy: { $ref: '#/components/schemas/WorkOrderCreatedBy' },
         },
       },
+      WorkOrderDetail: {
+        allOf: [
+          { $ref: '#/components/schemas/WorkOrder' },
+          {
+            type: 'object',
+            required: ['statusHistories', 'attachments'],
+            properties: {
+              statusHistories: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/WorkOrderStatusHistory' },
+              },
+              attachments: {
+                type: 'array',
+                items: { $ref: '#/components/schemas/WorkOrderAttachment' },
+              },
+            },
+          },
+        ],
+      },
+      TechnicianWorkOrder: {
+        type: 'object',
+        required: ['id', 'workOrderNumber', 'title', 'description', 'scheduledAt', 'status', 'completedAt', 'updatedAt', 'customer'],
+        properties: {
+          id: { type: 'string', format: 'uuid', example: uuidExample },
+          workOrderNumber: { type: 'string', example: 'WO-20270820-ABCDEF123456' },
+          title: { type: 'string', example: 'Perbaikan AC kantor' },
+          description: { type: 'string', example: 'AC lantai dua tidak dingin sejak pagi.' },
+          scheduledAt: { type: 'string', format: 'date-time', example: isoDateExample },
+          status: { $ref: '#/components/schemas/WorkOrderStatus' },
+          completedAt: { type: 'string', format: 'date-time', nullable: true },
+          createdAt: { type: 'string', format: 'date-time', example: isoDateExample },
+          updatedAt: { type: 'string', format: 'date-time', example: isoDateExample },
+          customer: { $ref: '#/components/schemas/WorkOrderCustomer' },
+        },
+      },
       CreateWorkOrderRequest: {
         type: 'object',
         additionalProperties: false,
@@ -915,6 +1208,37 @@ const openApiSpec = {
           },
         },
       },
+      UpdateTechnicianWorkOrderStatusRequest: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['status'],
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['ON_THE_WAY', 'IN_PROGRESS', 'COMPLETED'],
+            description: 'Harus merupakan status berikutnya dalam workflow teknisi.',
+          },
+          notes: { type: 'string', minLength: 1, maxLength: 1000 },
+        },
+      },
+      CreateWorkOrderAttachmentRequest: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['file'],
+        properties: {
+          file: {
+            type: 'string',
+            format: 'binary',
+            description: 'Satu file JPEG, PNG, atau WEBP dengan ukuran maksimal 5 MB.',
+          },
+          AttachmentType: {
+            allOf: [{ $ref: '#/components/schemas/AttachmentType' }],
+            default: 'OTHER',
+            description: 'Nama field mengikuti kontrak API saat ini dan bersifat case-sensitive.',
+          },
+          description: { type: 'string', minLength: 1, maxLength: 1000 },
+        },
+      },
       WorkOrderResponse: {
         type: 'object',
         required: ['success', 'message', 'data'],
@@ -922,6 +1246,54 @@ const openApiSpec = {
           success: { type: 'boolean', example: true },
           message: { type: 'string', example: 'Work order berhasil dibuat' },
           data: { $ref: '#/components/schemas/WorkOrder' },
+        },
+      },
+      WorkOrderDetailResponse: {
+        type: 'object',
+        required: ['success', 'message', 'data'],
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'Detail work order berhasil diambil' },
+          data: { $ref: '#/components/schemas/WorkOrderDetail' },
+        },
+      },
+      TechnicianWorkOrderDetailResponse: {
+        type: 'object',
+        required: ['success', 'message', 'data'],
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'Detail tugas teknisi berhasil diambil' },
+          data: { $ref: '#/components/schemas/WorkOrderDetail' },
+        },
+      },
+      TechnicianWorkOrderStatusResponse: {
+        type: 'object',
+        required: ['success', 'message', 'data'],
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'Status work order berhasil diperbarui' },
+          data: { $ref: '#/components/schemas/TechnicianWorkOrder' },
+        },
+      },
+      CreatedWorkOrderAttachment: {
+        allOf: [
+          { $ref: '#/components/schemas/WorkOrderAttachment' },
+          {
+            type: 'object',
+            required: ['workOrderId'],
+            properties: {
+              workOrderId: { type: 'string', format: 'uuid', example: uuidExample },
+            },
+          },
+        ],
+      },
+      WorkOrderAttachmentResponse: {
+        type: 'object',
+        required: ['success', 'message', 'data'],
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'Attachment work order berhasil diunggah' },
+          data: { $ref: '#/components/schemas/CreatedWorkOrderAttachment' },
         },
       },
       WorkOrderMeta: {
@@ -936,11 +1308,21 @@ const openApiSpec = {
       },
       WorkOrderListResponse: {
         type: 'object',
-        required: ['status', 'message', 'data', 'meta'],
+        required: ['success', 'message', 'data', 'meta'],
         properties: {
-          status: { type: 'boolean', example: true },
+          success: { type: 'boolean', example: true },
           message: { type: 'string', example: 'Work Orders berhasil diambil' },
           data: { type: 'array', items: { $ref: '#/components/schemas/WorkOrder' } },
+          meta: { $ref: '#/components/schemas/WorkOrderMeta' },
+        },
+      },
+      TechnicianWorkOrderListResponse: {
+        type: 'object',
+        required: ['success', 'message', 'data', 'meta'],
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'Daftar tugas teknisi berhasil diambil' },
+          data: { type: 'array', items: { $ref: '#/components/schemas/TechnicianWorkOrder' } },
           meta: { $ref: '#/components/schemas/WorkOrderMeta' },
         },
       },
