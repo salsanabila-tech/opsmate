@@ -1,10 +1,10 @@
-import { Redirect } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '../src/context/auth-context';
+import { useAuth } from '../../src/context/auth-context';
 
-export default function IndexScreen() {
+export default function TechnicianLayout() {
   const { status, user } = useAuth();
 
   if (status === 'loading') {
@@ -15,15 +15,21 @@ export default function IndexScreen() {
     );
   }
 
-  if (status === 'unauthenticated' || !user) {
+  if (!user) {
     return <Redirect href="/auth/login" />;
   }
 
-  if (user.role === 'ADMIN') {
-    return <Redirect href="/admin" />;
+  if (user.role !== 'TECHNICIAN') {
+    return <Redirect href="/" />;
   }
 
-  return <Redirect href="/technician" />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+      }}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
@@ -31,6 +37,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F7F7F8',
   },
 });
