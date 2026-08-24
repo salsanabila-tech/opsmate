@@ -1,6 +1,6 @@
 import { apiRequest } from './api';
 
-import type { DashboardSummary, WorkOrderListParams, WorkOrderListResponse } from '../types/work.order';
+import type { DashboardSummary, WorkOrderDetailResponse, WorkOrderListParams, WorkOrderListResponse } from '../types/work.order';
 
 import type { CustomerListSummaryResponse, TechnicianListSummaryResponse } from '../types/admin';
 
@@ -72,4 +72,15 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
 
     totalTechnicians: technicians.data.pagination.total,
   };
+}
+
+export function fetchWorkOrderDetail(
+  workOrderId: string,
+): Promise<WorkOrderDetailResponse> {
+  return apiRequest<WorkOrderDetailResponse>(
+    `/work-orders/${workOrderId}`,
+    {
+      authenticated: true,
+    },
+  );
 }
