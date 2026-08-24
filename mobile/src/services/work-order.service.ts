@@ -1,6 +1,6 @@
 import { apiRequest } from './api';
 
-import type { TechnicianWorkOrderDetailResponse, TechnicianWorkOrderListParams, TechnicianWorkOrderListResponse } from '../types/work-order';
+import type { TechnicianWorkOrderDetailResponse, TechnicianWorkOrderListParams, TechnicianWorkOrderListResponse, UpdateTechnicianWorkOrderStatusInput, UpdateTechnicianWorkOrderStatusResponse } from '../types/work-order';
 
 function buildQueryString(params: TechnicianWorkOrderListParams): string {
   const query = new URLSearchParams();
@@ -37,5 +37,25 @@ export async function fetchTechnicianWorkOrders(params: TechnicianWorkOrderListP
 export async function fetchTechnicianWorkOrderDetail(workOrderId: string): Promise<TechnicianWorkOrderDetailResponse> {
   return apiRequest<TechnicianWorkOrderDetailResponse>(`/work-orders/my/${workOrderId}`, {
     authenticated: true,
+  });
+}
+
+export async function updateTechnicianWorkOrderStatus(workOrderId: string, input: UpdateTechnicianWorkOrderStatusInput): Promise<UpdateTechnicianWorkOrderStatusResponse> {
+  const notes = input.notes?.trim();
+
+  return apiRequest<UpdateTechnicianWorkOrderStatusResponse>(`/work-orders/my/${workOrderId}/status`, {
+    method: 'PATCH',
+
+    authenticated: true,
+
+    body: JSON.stringify({
+      status: input.status,
+
+      ...(notes
+        ? {
+            notes,
+          }
+        : {}),
+    }),
   });
 }

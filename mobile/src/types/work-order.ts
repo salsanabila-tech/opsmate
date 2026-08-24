@@ -106,3 +106,29 @@ export type TechnicianWorkOrderDetailResponse = {
   message: string;
   data: TechnicianWorkOrderDetail;
 };
+
+export type TechnicianWorkOrderNextStatus = 'ON_THE_WAY' | 'IN_PROGRESS' | 'COMPLETED';
+
+export type UpdateTechnicianWorkOrderStatusInput = {
+  status: TechnicianWorkOrderNextStatus;
+  notes?: string;
+};
+
+export type UpdateTechnicianWorkOrderStatusResponse = {
+  success: true;
+  message: string;
+
+  data: {
+    id: string;
+    workOrderNumber: string;
+    title: string;
+    description: string;
+    scheduledAt: string;
+    status: WorkOrderStatus;
+    completedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+
+    customer: WorkOrderCustomer;
+  };
+};

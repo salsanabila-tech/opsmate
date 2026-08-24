@@ -561,7 +561,7 @@ export async function updateTechnicianWorkOrderStatus(input: UpdateTechnicianWor
     const allowedNextStatus = technicianWorkOrderStatusTransitions[workOrder.status];
 
     if (!allowedNextStatus || allowedNextStatus !== input.status) {
-      throw new AppError(409, 'Perubahan status dari ${workOrder.status} ke ${input.status} tidak diizinkan', 'INVALID_STATUS_TRANSITION');
+      throw new AppError(409, `Perubahan status dari ${workOrder.status} ke ${input.status} tidak diizinkan`, 'INVALID_STATUS_TRANSITION');
     }
 
     if (workOrder.status === WorkOrderStatus.ON_THE_WAY && input.status === WorkOrderStatus.IN_PROGRESS) {
@@ -573,7 +573,7 @@ export async function updateTechnicianWorkOrderStatus(input: UpdateTechnicianWor
       });
 
       if (beforeEvidenceCount < 1) {
-        throw new AppError(409, 'Evidence BEFORE wajib diunggah sebelum memulai pekerjaan', 'BEFORE_EVIDANCE_REQUIRED');
+        throw new AppError(409, 'Evidence BEFORE wajib diunggah sebelum memulai pekerjaan', 'BEFORE_EVIDENCE_REQUIRED');
       }
     }
 
