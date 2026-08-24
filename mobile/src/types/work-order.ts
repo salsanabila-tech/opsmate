@@ -43,3 +43,66 @@ export type TechnicianWorkOrderListParams = {
   search?: string;
   status?: WorkOrderStatus;
 };
+
+export type AttachmentType = 'BEFORE' | 'AFTER' | 'OTHER';
+
+export type WorkOrderActor = {
+  id: string;
+  name: string;
+  role?: string;
+};
+
+export type WorkOrderStatusHistory = {
+  id: string;
+  previousStatus: WorkOrderStatus | null;
+  newStatus: WorkOrderStatus;
+  notes: string | null;
+  createdAt: string;
+
+  changedBy: WorkOrderActor;
+};
+
+export type WorkOrderAttachment = {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  fileType: string;
+  fileSize: string;
+  attachmentType: AttachmentType;
+  description: string | null;
+  createdAt: string;
+
+  uploadedBy: WorkOrderActor;
+};
+
+export type TechnicianWorkOrderDetail = {
+  id: string;
+  workOrderNumber: string;
+  title: string;
+  description: string;
+  scheduledAt: string;
+  status: WorkOrderStatus;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+
+  customer: WorkOrderCustomer & {
+    notes: string | null;
+  };
+
+  createdBy: {
+    id: string;
+    name: string;
+    email: string;
+  };
+
+  statusHistories: WorkOrderStatusHistory[];
+
+  attachments: WorkOrderAttachment[];
+};
+
+export type TechnicianWorkOrderDetailResponse = {
+  success: true;
+  message: string;
+  data: TechnicianWorkOrderDetail;
+};

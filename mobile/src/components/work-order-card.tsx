@@ -1,6 +1,6 @@
 import Feather from '@expo/vector-icons/Feather';
 
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { TechnicianWorkOrder } from '../types/work-order';
 
@@ -10,11 +10,12 @@ import { WorkOrderStatusBadge } from './work-order-status-badge';
 
 type Props = {
   workOrder: TechnicianWorkOrder;
+  onPress?: () => void;
 };
 
-export function WorkOrderCard({ workOrder }: Props) {
+export function WorkOrderCard({ workOrder, onPress }: Props) {
   return (
-    <View style={styles.card}>
+    <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [styles.card, pressed && onPress && styles.cardPressed]}>
       <View style={styles.header}>
         <Text style={styles.workOrderNumber} numberOfLines={1}>
           {workOrder.workOrderNumber}
@@ -74,7 +75,7 @@ export function WorkOrderCard({ workOrder }: Props) {
           </View>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -86,6 +87,15 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderRadius: 18,
     backgroundColor: '#FFFFFF',
+  },
+
+  cardPressed: {
+    opacity: 0.72,
+    transform: [
+      {
+        scale: 0.995,
+      },
+    ],
   },
 
   header: {

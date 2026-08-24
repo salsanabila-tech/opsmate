@@ -1,5 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 
+import { router } from 'expo-router';
+
 import { useCallback, useEffect, useState } from 'react';
 
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -203,7 +205,22 @@ export default function TechnicianHomeScreen() {
       <FlatList
         data={workOrders}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <WorkOrderCard workOrder={item} />}
+        renderItem={({ item }) => (
+          <WorkOrderCard
+            workOrder={item}
+
+            onPress={() => {
+              router.push({
+                pathname: "/technician/work-orders/[workOrderId]",
+
+                params: {
+                  workOrderId: item.id,
+                },
+              });
+            }}
+          />
+        )}
+
         contentContainerStyle={[styles.listContent, workOrders.length === 0 && styles.emptyListContent]}
         refreshControl={
           <RefreshControl
