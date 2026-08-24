@@ -8,6 +8,8 @@ import { DashboardPage } from './pages/dashboard-page';
 
 import { LoginPage } from './pages/login-page';
 
+import { WorkOrdersPage } from './pages/work-orders-page';
+
 import { PlaceholderPage } from './pages/placeholder-page';
 
 export default function App() {
@@ -19,7 +21,7 @@ export default function App() {
         <Route path="/app" element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
 
-          <Route path="work-orders" element={<PlaceholderPage title="Work Orders" description="Kelola seluruh pekerjaan OpsMate." />} />
+          <Route path="work-orders" element={<WorkOrdersPage />} />
 
           <Route path="customers" element={<PlaceholderPage title="Customers" description="Kelola data customer OpsMate." />} />
 
