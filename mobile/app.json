@@ -41,7 +41,15 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "OpsMate membutuhkan akses galeri untuk memilih bukti pekerjaan.",
+          "cameraPermission": "OpsMate membutuhkan akses kamera untuk mengambil bukti pekerjaan.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

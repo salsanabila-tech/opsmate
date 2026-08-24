@@ -279,7 +279,7 @@ export async function createTechnicianWorkOrderAttachmentController(request: Req
 
       technicianId: request.auth.userId,
 
-      attachmentType: bodyValidation.data.AttachmentType,
+      attachmentType: bodyValidation.data.attachmentType,
 
       description: bodyValidation.data.description,
 

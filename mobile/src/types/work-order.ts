@@ -132,3 +132,21 @@ export type UpdateTechnicianWorkOrderStatusResponse = {
     customer: WorkOrderCustomer;
   };
 };
+
+export type UploadWorkOrderAttachmentFile = {
+  uri: string;
+  name: string;
+  type: 'image/jpeg' | 'image/png' | 'image/webp';
+};
+
+export type UploadTechnicianWorkOrderAttachmentInput = {
+  attachmentType: AttachmentType;
+  description?: string;
+  file: UploadWorkOrderAttachmentFile;
+};
+
+export type UploadTechnicianWorkOrderAttachmentResponse = {
+  success: true;
+  message: string;
+  data: WorkOrderAttachment;
+};
