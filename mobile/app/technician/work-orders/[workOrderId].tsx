@@ -18,6 +18,8 @@ import { fetchTechnicianWorkOrderDetail } from '../../../src/services/work-order
 
 import type { TechnicianWorkOrderDetail } from '../../../src/types/work-order';
 
+import { TechnicianWorkOrderStatusAction } from '../../../src/components/technician-work-order-status-action';
+
 import { formatWorkOrderDate } from '../../../src/utils/date';
 
 export default function TechnicianWorkOrderDetailScreen() {
@@ -170,6 +172,10 @@ export default function TechnicianWorkOrderDetailScreen() {
 
           <Text style={styles.description}>{workOrder.description}</Text>
         </View>
+
+        <Section title="Aksi Pekerjaan">
+          <TechnicianWorkOrderStatusAction workOrder={workOrder} onUpdated={loadDetail} />
+        </Section>
 
         <Section title="Jadwal">
           <InfoRow icon="calendar" label="Waktu pekerjaan" value={formatWorkOrderDate(workOrder.scheduledAt)} />
