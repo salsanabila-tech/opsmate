@@ -12,6 +12,8 @@ import { WorkOrdersPage } from './pages/work-orders-page';
 
 import { WorkOrderDetailPage } from './pages/work-order-detail-page';
 
+import { CreateWorkOrderPage } from './pages/create-work-order-page';
+
 import { PlaceholderPage } from './pages/placeholder-page';
 
 export default function App() {
@@ -24,6 +26,8 @@ export default function App() {
           <Route index element={<DashboardPage />} />
 
           <Route path="work-orders" element={<WorkOrdersPage />} />
+
+          <Route path="work-orders/new" element={<CreateWorkOrderPage />} />
 
           <Route path="work-orders/:workOrderId" element={<WorkOrderDetailPage />} />
 

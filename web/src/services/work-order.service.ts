@@ -1,6 +1,6 @@
 import { apiRequest } from './api';
 
-import type { DashboardSummary, WorkOrderDetailResponse, WorkOrderListParams, WorkOrderListResponse } from '../types/work.order';
+import type { CreateWorkOrderInput, CreateWorkOrderResponse, DashboardSummary, WorkOrderDetailResponse, WorkOrderListParams, WorkOrderListResponse } from '../types/work.order';
 
 import type { CustomerListSummaryResponse, TechnicianListSummaryResponse } from '../types/admin';
 
@@ -74,13 +74,28 @@ export async function fetchDashboardSummary(): Promise<DashboardSummary> {
   };
 }
 
-export function fetchWorkOrderDetail(
-  workOrderId: string,
-): Promise<WorkOrderDetailResponse> {
-  return apiRequest<WorkOrderDetailResponse>(
-    `/work-orders/${workOrderId}`,
-    {
-      authenticated: true,
-    },
-  );
+export function fetchWorkOrderDetail(workOrderId: string): Promise<WorkOrderDetailResponse> {
+  return apiRequest<WorkOrderDetailResponse>(`/work-orders/${workOrderId}`, {
+    authenticated: true,
+  });
+}
+
+export function createWorkOrder(input: CreateWorkOrderInput): Promise<CreateWorkOrderResponse> {
+  return apiRequest<CreateWorkOrderResponse>('/work-orders', {
+    method: 'POST',
+
+    authenticated: true,
+
+    body: JSON.stringify({
+      customerId: input.customerId,
+
+      technicianId: input.technicianId ?? null,
+
+      title: input.title.trim(),
+
+      description: input.description.trim(),
+
+      scheduledAt: input.scheduledAt,
+    }),
+  });
 }

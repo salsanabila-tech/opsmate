@@ -203,3 +203,29 @@ export type WorkOrderDetailResponse = {
 
   data: WorkOrderDetail;
 };
+
+export type CreateWorkOrderInput = {
+  customerId: string;
+
+  technicianId?: string | null;
+
+  title: string;
+
+  description: string;
+
+  scheduledAt: string;
+};
+
+export type CreateWorkOrderResponse = {
+  success: true;
+
+  message: string;
+
+  data: {
+    id: string;
+
+    workOrderNumber: string;
+
+    status: WorkOrderStatus;
+  };
+};

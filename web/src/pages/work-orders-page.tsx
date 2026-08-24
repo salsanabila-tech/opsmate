@@ -1,10 +1,10 @@
-import { ChevronLeft, ChevronRight, ClipboardList, RefreshCw, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, Plus, RefreshCw, Search } from 'lucide-react';
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { useState, type FormEvent } from 'react';
 
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { fetchWorkOrders } from '../services/work-order.service';
 
@@ -118,25 +118,24 @@ export function WorkOrdersPage() {
   return (
     <>
       <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-400">OPERATIONS</p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              void workOrdersQuery.refetch();
+            }}
+            disabled={workOrdersQuery.isFetching}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw className={['h-4 w-4', workOrdersQuery.isFetching ? 'animate-spin' : ''].join(' ')} />
+            Refresh
+          </button>
 
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950">Work Orders</h1>
-
-          <p className="mt-2 text-sm text-gray-500">Pantau seluruh pekerjaan yang berjalan di OpsMate.</p>
+          <Link to="/app/work-orders/new" className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-gray-950 px-4 text-sm font-semibold text-white transition hover:bg-gray-800">
+            <Plus className="h-4 w-4" />
+            Buat Work Order
+          </Link>
         </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            void workOrdersQuery.refetch();
-          }}
-          disabled={workOrdersQuery.isFetching}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
-        >
-          <RefreshCw className={['h-4 w-4', workOrdersQuery.isFetching ? 'animate-spin' : ''].join(' ')} />
-          Refresh
-        </button>
       </header>
 
       <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-4">
