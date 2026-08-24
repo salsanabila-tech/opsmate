@@ -88,7 +88,7 @@ export const updateTechnicianWorkOrderStatusBodySchema = z
 
 export const createTechnicianWorkOrderAttachmentBodySchema = z
   .object({
-    AttachmentType: z.enum(AttachmentType).default(AttachmentType.OTHER),
+    attachmentType: z.enum(AttachmentType).default(AttachmentType.OTHER),
 
     description: z.string().trim().min(1, 'Deskripsi tidak boleh kosong').max(1000, 'Deskripsi maksimal 1000 karakter').optional(),
   })

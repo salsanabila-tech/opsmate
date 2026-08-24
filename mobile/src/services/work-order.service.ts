@@ -1,6 +1,14 @@
 import { apiRequest } from './api';
 
-import type { TechnicianWorkOrderDetailResponse, TechnicianWorkOrderListParams, TechnicianWorkOrderListResponse, UpdateTechnicianWorkOrderStatusInput, UpdateTechnicianWorkOrderStatusResponse } from '../types/work-order';
+import type {
+  TechnicianWorkOrderDetailResponse,
+  TechnicianWorkOrderListParams,
+  TechnicianWorkOrderListResponse,
+  UpdateTechnicianWorkOrderStatusInput,
+  UpdateTechnicianWorkOrderStatusResponse,
+  UploadTechnicianWorkOrderAttachmentInput,
+  UploadTechnicianWorkOrderAttachmentResponse,
+} from '../types/work-order';
 
 function buildQueryString(params: TechnicianWorkOrderListParams): string {
   const query = new URLSearchParams();
@@ -57,5 +65,29 @@ export async function updateTechnicianWorkOrderStatus(workOrderId: string, input
           }
         : {}),
     }),
+  });
+}
+
+export async function uploadTechnicianWorkOrderAttachment(workOrderId: string, input: UploadTechnicianWorkOrderAttachmentInput): Promise<UploadTechnicianWorkOrderAttachmentResponse> {
+  const formData = new FormData();
+
+  formData.append('attachmentType', input.attachmentType);
+
+  const description = input.description?.trim();
+
+  if (description) {
+    formData.append('description', description);
+  }
+
+  formData.append('file', {
+    uri: input.file.uri,
+    name: input.file.name,
+    type: input.file.type,
+  } as unknown as Blob);
+
+  return apiRequest<UploadTechnicianWorkOrderAttachmentResponse>(`/work-orders/my/${workOrderId}/attachments`, {
+    method: 'POST',
+    authenticated: true,
+    body: formData,
   });
 }

@@ -20,6 +20,8 @@ import type { TechnicianWorkOrderDetail } from '../../../src/types/work-order';
 
 import { TechnicianWorkOrderStatusAction } from '../../../src/components/technician-work-order-status-action';
 
+import { TechnicianEvidenceUpload } from '../../../src/components/technician-evidence-upload';
+
 import { formatWorkOrderDate } from '../../../src/utils/date';
 
 export default function TechnicianWorkOrderDetailScreen() {
@@ -176,6 +178,12 @@ export default function TechnicianWorkOrderDetailScreen() {
         <Section title="Aksi Pekerjaan">
           <TechnicianWorkOrderStatusAction workOrder={workOrder} onUpdated={loadDetail} />
         </Section>
+
+        {workOrder.status === 'ON_THE_WAY' || workOrder.status === 'IN_PROGRESS' ? (
+          <Section title="Upload Evidence">
+            <TechnicianEvidenceUpload workOrder={workOrder} onUploaded={loadDetail} />
+          </Section>
+        ) : null}
 
         <Section title="Jadwal">
           <InfoRow icon="calendar" label="Waktu pekerjaan" value={formatWorkOrderDate(workOrder.scheduledAt)} />
