@@ -4,6 +4,8 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import { useState, type FormEvent } from 'react';
 
+import { useNavigate } from 'react-router-dom';
+
 import { fetchWorkOrders } from '../services/work-order.service';
 
 import type { WorkOrderStatus } from '../types/work.order';
@@ -88,6 +90,8 @@ export function WorkOrdersPage() {
 
     placeholderData: keepPreviousData,
   });
+
+  const navigate = useNavigate();
 
   function handleSearch(event: FormEvent) {
     event.preventDefault();
@@ -213,24 +217,38 @@ export function WorkOrdersPage() {
                   <th className="px-6 py-3">Status</th>
 
                   <th className="px-6 py-3">Dibuat Oleh</th>
+
+                  <th className="w-12 px-6 py-3" />
                 </tr>
               </thead>
 
               <tbody>
                 {response.data.map((workOrder) => (
-                  <tr key={workOrder.id} className="border-b border-gray-100 transition last:border-b-0 hover:bg-gray-50/70">
+                  <tr
+                    key={workOrder.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      navigate(`/app/work-orders/${workOrder.id}`);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        navigate(`/app/work-orders/${workOrder.id}`);
+                      }
+                    }}
+                    className="cursor-pointer border-b border-gray-100 transition last:border-b-0 hover:bg-gray-50/70 focus:bg-gray-50 focus:outline-none"
+                  >
+                    {' '}
                     <td className="px-6 py-4">
                       <div className="text-sm font-semibold text-gray-900">{workOrder.workOrderNumber}</div>
 
                       <div className="mt-1 max-w-[250px] truncate text-sm text-gray-500">{workOrder.title}</div>
                     </td>
-
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-800">{workOrder.customer.name}</div>
 
                       <div className="mt-1 text-xs text-gray-400">{workOrder.customer.phone}</div>
                     </td>
-
                     <td className="px-6 py-4">
                       {workOrder.technician ? (
                         <>
@@ -242,13 +260,10 @@ export function WorkOrdersPage() {
                         <span className="text-sm text-gray-400">Belum ditugaskan</span>
                       )}
                     </td>
-
                     <td className="px-6 py-4 text-sm text-gray-500">{formatDateTime(workOrder.scheduledAt)}</td>
-
                     <td className="px-6 py-4">
                       <WorkOrderStatusBadge status={workOrder.status} />
                     </td>
-
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-700">{workOrder.createdBy.name}</div>
 

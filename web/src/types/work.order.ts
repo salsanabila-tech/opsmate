@@ -77,3 +77,129 @@ export type DashboardSummary = {
   totalCustomers: number;
   totalTechnicians: number;
 };
+
+export type AttachmentType = 'BEFORE' | 'AFTER' | 'OTHER';
+
+export type WorkOrderStatusHistory = {
+  id: string;
+
+  previousStatus: WorkOrderStatus | null;
+
+  newStatus: WorkOrderStatus;
+
+  notes: string | null;
+
+  createdAt: string;
+
+  changedBy: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+};
+
+export type WorkOrderAttachment = {
+  id: string;
+
+  fileUrl: string;
+
+  fileName: string;
+
+  fileType: string;
+
+  fileSize: string;
+
+  attachmentType: AttachmentType;
+
+  description: string | null;
+
+  createdAt: string;
+
+  uploadedBy: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
+};
+
+export type WorkOrderDetail = {
+  id: string;
+
+  workOrderNumber: string;
+
+  title: string;
+
+  description: string;
+
+  scheduledAt: string;
+
+  status: WorkOrderStatus;
+
+  completedAt: string | null;
+
+  createdAt: string;
+
+  updatedAt: string;
+
+  customer: {
+    id: string;
+
+    name: string;
+
+    phone: string;
+
+    email: string | null;
+
+    address: string;
+
+    notes: string | null;
+
+    createdAt: string;
+
+    updatedAt: string;
+  };
+
+  technician: {
+    id: string;
+
+    name: string;
+
+    email: string;
+
+    phone: string | null;
+
+    role: string;
+
+    isActive: boolean;
+
+    createdAt: string;
+
+    updatedAt: string;
+  } | null;
+
+  createdBy: {
+    id: string;
+
+    name: string;
+
+    email: string;
+
+    role: string;
+
+    isActive: boolean;
+  };
+
+  statusHistories: WorkOrderStatusHistory[];
+
+  attachments: WorkOrderAttachment[];
+};
+
+export type WorkOrderDetailResponse = {
+  success: true;
+
+  message: string;
+
+  data: WorkOrderDetail;
+};

@@ -10,6 +10,8 @@ import { LoginPage } from './pages/login-page';
 
 import { WorkOrdersPage } from './pages/work-orders-page';
 
+import { WorkOrderDetailPage } from './pages/work-order-detail-page';
+
 import { PlaceholderPage } from './pages/placeholder-page';
 
 export default function App() {
@@ -22,6 +24,8 @@ export default function App() {
           <Route index element={<DashboardPage />} />
 
           <Route path="work-orders" element={<WorkOrdersPage />} />
+
+          <Route path="work-orders/:workOrderId" element={<WorkOrderDetailPage />} />
 
           <Route path="customers" element={<PlaceholderPage title="Customers" description="Kelola data customer OpsMate." />} />
 
