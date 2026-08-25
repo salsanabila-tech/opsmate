@@ -26,6 +26,17 @@ enum WorkOrderStatus {
   @@map("work_order_status")
 }
 
+enum ServiceRequestStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  CONVERTED
+
+  @@map("service_request_status")
+}
+
 enum AttachmentType {
   BEFORE
   AFTER
@@ -53,6 +64,8 @@ model User {
 
   customerProfile Customer?
 
+  serviceRequestStatusChanges ServiceRequestStatusHistory[] @relation("ServiceRequestStatusChangedBy")
+
   @@map("users")
 }
 
@@ -69,7 +82,8 @@ model Customer {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
-  workOrders WorkOrder[]
+  workOrders      WorkOrder[]
+  serviceRequests ServiceRequest[]
 
   @@index([phone])
   @@map("customers")
@@ -95,6 +109,7 @@ model WorkOrder {
 
   statusHistories WorkOrderStatusHistory[]
   attachments     WorkOrderAttachment[]
+  serviceRequest  ServiceRequest?
 
   @@index([customerId])
   @@index([technicianId])
@@ -102,6 +117,52 @@ model WorkOrder {
   @@index([status])
   @@index([scheduledAt])
   @@map("work_orders")
+}
+
+model ServiceRequest {
+  id                String               @id @default(uuid()) @db.Uuid
+  requestNumber     String               @unique @map("request_number") @db.VarChar(30)
+  customerId        String               @map("customer_id") @db.Uuid
+  serviceType       String               @map("service_type") @db.VarChar(100)
+  title             String               @db.VarChar(150)
+  description       String               @db.Text
+  serviceAddress    String               @map("service_address") @db.Text
+  contactPhone      String               @map("contact_phone") @db.VarChar(20)
+  preferredSchedule DateTime?            @map("preferred_schedule") @db.Timestamptz(3)
+  status            ServiceRequestStatus @default(SUBMITTED)
+  workOrderId       String?              @unique @map("work_order_id") @db.Uuid
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  workOrder WorkOrder? @relation(fields: [workOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  statusHistories ServiceRequestStatusHistory[]
+
+  @@index([customerId])
+  @@index([status])
+  @@index([preferredSchedule])
+  @@index([createdAt])
+  @@map("service_requests")
+}
+
+model ServiceRequestStatusHistory {
+  id               String                @id @default(uuid()) @db.Uuid
+  serviceRequestId String                @map("service_request_id") @db.Uuid
+  previousStatus   ServiceRequestStatus? @map("previous_status")
+  newStatus        ServiceRequestStatus  @map("new_status")
+  changedById      String                @map("changed_by") @db.Uuid
+  notes            String?               @db.Text
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  changedBy User @relation("ServiceRequestStatusChangedBy", fields: [changedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([serviceRequestId])
+  @@index([changedById])
+  @@index([createdAt])
+  @@map("service_request_status_histories")
 }
 
 model WorkOrderStatusHistory {
