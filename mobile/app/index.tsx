@@ -19,18 +19,17 @@ export default function IndexScreen() {
     return <Redirect href="/auth/login" />;
   }
 
-  if (user.role === 'ADMIN') {
-    return <Redirect href="/admin" />;
-  }
-
   return <Redirect href="/technician" />;
 }
 
 const styles = StyleSheet.create({
   loading: {
     flex: 1,
+
     alignItems: 'center',
+
     justifyContent: 'center',
+
     backgroundColor: '#F7F7F8',
   },
 });

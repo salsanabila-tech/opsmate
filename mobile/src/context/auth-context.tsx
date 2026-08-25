@@ -47,6 +47,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        if (response.data.user.role !== 'TECHNICIAN') {
+          try {
+            await logoutUser();
+          } catch {}
+
+          await clearTokens();
+
+          setUser(null);
+
+          setStatus('unauthenticated');
+
+          return;
+        }
+
         setUser(response.data.user);
 
         setStatus('authenticated');
@@ -73,6 +87,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   async function signIn(email: string, password: string): Promise<void> {
     const response = await loginUser({
       email: email.trim(),
+
       password,
     });
 
@@ -81,6 +96,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       refreshToken: response.data.refreshToken,
     });
+
+    if (response.data.user.role !== 'TECHNICIAN') {
+      try {
+        await logoutUser();
+      } catch {
+        // Session lokal tetap dibersihkan.
+      }
+
+      await clearTokens();
+
+      setUser(null);
+
+      setStatus('unauthenticated');
+
+      throw new Error('Aplikasi OpsMate Mobile hanya untuk Technician. Admin menggunakan OpsMate Web.');
+    }
 
     setUser(response.data.user);
 
