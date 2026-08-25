@@ -52,7 +52,7 @@ export default function LoginScreen() {
 
           <Text style={styles.title}>Selamat datang</Text>
 
-          <Text style={styles.subtitle}>Masuk untuk mengelola pekerjaan dan aktivitas servis.</Text>
+          <Text style={styles.subtitle}>Masuk menggunakan akun Technician untuk melihat dan menyelesaikan tugas lapangan.</Text>
 
           <View style={styles.form}>
             <View>
