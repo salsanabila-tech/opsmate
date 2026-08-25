@@ -49,3 +49,9 @@ export const customerIdParamSchema = z
   .strict();
 
 export type CustomerIdParams = z.infer<typeof customerIdParamSchema>;
+
+export const updateCustomerBodySchema = createCustomerBodySchema.partial().refine((data) => Object.keys(data).length > 0, {
+  message: 'Minimal satu field harus diperbarui',
+});
+
+export type UpdateCustomerBody = z.infer<typeof updateCustomerBodySchema>;

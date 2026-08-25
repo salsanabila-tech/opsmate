@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { createCustomer, getCustomerDetails, listCustomers } from '../services/customer.service.js';
-import { createCustomerBodySchema, customerIdParamSchema, listCustomerQuerySchema } from '../validations/customer.validation.js';
+import { createCustomer, getCustomerDetails, listCustomers, updateCustomer } from '../services/customer.service.js';
+import { createCustomerBodySchema, customerIdParamSchema, listCustomerQuerySchema, updateCustomerBodySchema } from '../validations/customer.validation.js';
 
 export async function createCustomerController(request: Request, response: Response, next: NextFunction): Promise<void> {
   const validationResult = createCustomerBodySchema.safeParse(request.body);
@@ -102,6 +102,68 @@ export async function getCustomerDetailsController(request: Request, response: R
     response.status(200).json({
       success: true,
       message: 'Detail customer berhasil diambil',
+      data: {
+        customer,
+      },
+    });
+  } catch (error: unknown) {
+    next(error);
+  }
+}
+
+export async function updateCustomerController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  const paramsValidation = customerIdParamSchema.safeParse(request.params);
+
+  if (!paramsValidation.success) {
+    response.status(422).json({
+      success: false,
+
+      message: 'Validasi parameter gagal',
+
+      code: 'VALIDATION_ERROR',
+
+      errors: paramsValidation.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'params',
+
+        message: issue.message,
+      })),
+    });
+
+    return;
+  }
+
+  const bodyValidation = updateCustomerBodySchema.safeParse(request.body);
+
+  if (!bodyValidation.success) {
+    response.status(422).json({
+      success: false,
+
+      message: 'Validasi data gagal',
+
+      code: 'VALIDATION_ERROR',
+
+      errors: bodyValidation.error.issues.map((issue) => ({
+        field: issue.path.join('.') || 'body',
+
+        message: issue.message,
+      })),
+    });
+
+    return;
+  }
+
+  try {
+    const customer = await updateCustomer({
+      customerId: paramsValidation.data.customerId,
+
+      ...bodyValidation.data,
+    });
+
+    response.status(200).json({
+      success: true,
+
+      message: 'Customer berhasil diperbarui',
+
       data: {
         customer,
       },
