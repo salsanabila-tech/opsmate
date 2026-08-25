@@ -14,6 +14,14 @@ import { WorkOrderDetailPage } from './pages/work-order-detail-page';
 
 import { CreateWorkOrderPage } from './pages/create-work-order-page';
 
+import { CustomersPage } from './pages/customer-page';
+
+import { CreateCustomerPage } from './pages/create-customer-page';
+
+import { CustomerDetailPage } from './pages/customer-detail-page';
+
+import { EditCustomerPage } from './pages/edit-customer-page';
+
 import { PlaceholderPage } from './pages/placeholder-page';
 
 export default function App() {
@@ -31,7 +39,13 @@ export default function App() {
 
           <Route path="work-orders/:workOrderId" element={<WorkOrderDetailPage />} />
 
-          <Route path="customers" element={<PlaceholderPage title="Customers" description="Kelola data customer OpsMate." />} />
+          <Route path="customers" element={<CustomersPage />} />
+
+          <Route path="customers/new" element={<CreateCustomerPage />} />
+
+          <Route path="customers/:customerId" element={<CustomerDetailPage />} />
+
+          <Route path="customers/:customerId/edit" element={<EditCustomerPage />} />
 
           <Route path="technicians" element={<PlaceholderPage title="Technicians" description="Kelola akun dan aktivitas teknisi." />} />
         </Route>

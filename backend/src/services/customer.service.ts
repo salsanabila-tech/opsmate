@@ -20,6 +20,20 @@ type GetCustomerDetailsInput = {
   customerId: string;
 };
 
+type UpdateCustomerInput = {
+  customerId: string;
+
+  name?: string;
+
+  phone?: string;
+
+  email?: string | null;
+
+  address?: string;
+
+  notes?: string | null;
+};
+
 export async function createCustomer(input: CreatedCustomerInput) {
   return prisma.customer.create({
     data: {
@@ -119,4 +133,69 @@ export async function getCustomerDetails(input: GetCustomerDetailsInput) {
   }
 
   return customer;
+}
+
+export async function updateCustomer(input: UpdateCustomerInput) {
+  const customer = await prisma.customer.findUnique({
+    where: {
+      id: input.customerId,
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  if (!customer) {
+    throw new AppError(404, 'Customer tidak ditemukan', 'CUSTOMER_NOT_FOUND');
+  }
+
+  return prisma.customer.update({
+    where: {
+      id: input.customerId,
+    },
+
+    data: {
+      ...(input.name !== undefined
+        ? {
+            name: input.name,
+          }
+        : {}),
+
+      ...(input.phone !== undefined
+        ? {
+            phone: input.phone,
+          }
+        : {}),
+
+      ...(input.email !== undefined
+        ? {
+            email: input.email,
+          }
+        : {}),
+
+      ...(input.address !== undefined
+        ? {
+            address: input.address,
+          }
+        : {}),
+
+      ...(input.notes !== undefined
+        ? {
+            notes: input.notes,
+          }
+        : {}),
+    },
+
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      email: true,
+      address: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
 }
