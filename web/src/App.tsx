@@ -22,7 +22,13 @@ import { CustomerDetailPage } from './pages/customer-detail-page';
 
 import { EditCustomerPage } from './pages/edit-customer-page';
 
-import { PlaceholderPage } from './pages/placeholder-page';
+import { TechniciansPage } from './pages/technician-page';
+
+import { CreateTechnicianPage } from './pages/create-technician-page';
+
+import { TechnicianDetailPage } from './pages/technician-detail-page';
+
+import { EditTechnicianPage } from './pages/edit-technician-page';
 
 export default function App() {
   return (
@@ -47,7 +53,13 @@ export default function App() {
 
           <Route path="customers/:customerId/edit" element={<EditCustomerPage />} />
 
-          <Route path="technicians" element={<PlaceholderPage title="Technicians" description="Kelola akun dan aktivitas teknisi." />} />
+          <Route path="technicians" element={<TechniciansPage />} />
+
+          <Route path="technicians/new" element={<CreateTechnicianPage />} />
+
+          <Route path="technicians/:technicianId" element={<TechnicianDetailPage />} />
+
+          <Route path="technicians/:technicianId/edit" element={<EditTechnicianPage />} />
         </Route>
       </Route>
 
