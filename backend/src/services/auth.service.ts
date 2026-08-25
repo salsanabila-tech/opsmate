@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import * as argon2 from 'argon2';
 import { AppError } from '../errors/app-error.js';
 import { prisma } from '../lib/prisma.js';
+import { Prisma, UserRole } from '../generated/prisma/client.js';
 import { createAccessToken, createRefreshToken, hashToken, tokenHashMatches, verifyRefreshToken } from './token.service.js';
 import { env } from '../config/env.js';
 import { throwDeprecation } from 'node:process';
@@ -23,11 +24,20 @@ type LogoutCurrentSessionInput = {
   sessionId: string;
 };
 
+type RegisterCustomerInput = {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  address: string;
+};
+
 export async function login(input: LoginInput) {
   const user = await prisma.user.findUnique({
     where: {
       email: input.email,
     },
+
     select: {
       id: true,
       name: true,
@@ -36,6 +46,12 @@ export async function login(input: LoginInput) {
       role: true,
       isActive: true,
       createdAt: true,
+
+      customerProfile: {
+        select: {
+          id: true,
+        },
+      },
     },
   });
 
@@ -89,6 +105,9 @@ export async function login(input: LoginInput) {
       email: user.email,
       role: user.role,
       isActive: user.isActive,
+
+      customerId: user.customerProfile?.id ?? null,
+
       createdAt: user.createdAt,
     },
     accessToken,
@@ -243,4 +262,139 @@ function refreshDurationInMilliseconds(): number {
 
 function createRefreshTokenExpirationDate(): Date {
   return new Date(Date.now() + refreshDurationInMilliseconds());
+}
+
+export async function registerCustomer(input: RegisterCustomerInput) {
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      email: input.email,
+    },
+
+    select: {
+      id: true,
+    },
+  });
+
+  if (existingUser) {
+    throw new AppError(409, 'Email sudah digunakan', 'EMAIL_ALREADY_EXISTS');
+  }
+
+  const passwordHash = await argon2.hash(input.password);
+
+  try {
+    return await prisma.$transaction(async (transaction) => {
+      const matchingCustomers = await transaction.customer.findMany({
+        where: {
+          email: input.email,
+          userId: null,
+        },
+
+        select: {
+          id: true,
+        },
+
+        take: 2,
+      });
+
+      if (matchingCustomers.length > 1) {
+        throw new AppError(409, 'Terdapat lebih dari satu profil customer dengan email ini. Silakan hubungi administrator.', 'CUSTOMER_PROFILE_CONFLICT');
+      }
+
+      const user = await transaction.user.create({
+        data: {
+          name: input.name,
+
+          email: input.email,
+
+          phone: input.phone,
+
+          passwordHash,
+
+          role: UserRole.CUSTOMER,
+
+          isActive: true,
+        },
+
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      const existingCustomer = matchingCustomers[0];
+
+      const customer = existingCustomer
+        ? await transaction.customer.update({
+            where: {
+              id: existingCustomer.id,
+            },
+
+            data: {
+              userId: user.id,
+
+              name: input.name,
+
+              phone: input.phone,
+
+              email: input.email,
+
+              address: input.address,
+            },
+
+            select: {
+              id: true,
+              userId: true,
+              name: true,
+              phone: true,
+              email: true,
+              address: true,
+              notes: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          })
+        : await transaction.customer.create({
+            data: {
+              userId: user.id,
+
+              name: input.name,
+
+              phone: input.phone,
+
+              email: input.email,
+
+              address: input.address,
+            },
+
+            select: {
+              id: true,
+              userId: true,
+              name: true,
+              phone: true,
+              email: true,
+              address: true,
+              notes: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          });
+
+      return {
+        user,
+        customer,
+      };
+    });
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new AppError(409, 'Email sudah digunakan', 'EMAIL_ALREADY_EXISTS');
+    }
+
+    throw error;
+  }
 }
