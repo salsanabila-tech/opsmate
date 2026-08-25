@@ -1,7 +1,9 @@
-export type UserRole = 'ADMIN' | 'TECHNICIAN';
+export type UserRole = 'ADMIN' | 'TECHNICIAN' | 'CUSTOMER';
 
 export type AuthUser = {
   id: string;
+
+  customerId?: string | null;
 
   name: string;
 

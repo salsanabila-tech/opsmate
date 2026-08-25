@@ -10,6 +10,7 @@ datasource db {
 enum UserRole {
   ADMIN
   TECHNICIAN
+  CUSTOMER
 
   @@map("user_role")
 }
@@ -50,11 +51,14 @@ model User {
   uploadedAttachments WorkOrderAttachment[]    @relation("AttachmentUploadedBy")
   authSessions        AuthSessions[]
 
+  customerProfile Customer?
+
   @@map("users")
 }
 
 model Customer {
   id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @unique @map("user_id") @db.Uuid
   name      String   @db.VarChar(100)
   phone     String   @db.VarChar(20)
   email     String?  @db.VarChar(150)
@@ -62,6 +66,8 @@ model Customer {
   notes     String?  @db.Text
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   workOrders WorkOrder[]
 
