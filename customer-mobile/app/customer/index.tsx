@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useState } from 'react';
 
+import { Link } from 'expo-router';
+
 import { useAuth } from '../../src/context/auth-context';
 
 export default function CustomerHomeScreen() {
@@ -52,11 +54,21 @@ export default function CustomerHomeScreen() {
           </Text>
         </View>
 
-        <View style={styles.nextCard}>
-          <Text style={styles.nextTitle}>Selanjutnya</Text>
+        <Link href="/customer/request-new" asChild>
+          <Pressable style={styles.serviceCard}>
+            <View>
+              <Text style={styles.serviceEyebrow}>SERVICE REQUEST</Text>
 
-          <Text style={styles.nextText}>Pembuatan Service Request akan ditambahkan pada tahap 14I.5.</Text>
-        </View>
+              <Text style={styles.serviceTitle}>Butuh teknisi?</Text>
+
+              <Text style={styles.serviceText}>Buat permintaan service baru dan jelaskan masalah perangkat Anda.</Text>
+            </View>
+
+            <View style={styles.serviceArrow}>
+              <Text style={styles.serviceArrowText}>→</Text>
+            </View>
+          </Pressable>
+        </Link>
 
         <Pressable
           disabled={loggingOut}
@@ -169,32 +181,74 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F1F3',
   },
 
-  nextCard: {
-    marginTop: 16,
+  serviceCard: {
+    marginTop: 18,
 
-    padding: 18,
+    padding: 20,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'space-between',
 
     borderRadius: 16,
 
     backgroundColor: '#111827',
   },
 
-  nextTitle: {
-    color: '#FFFFFF',
+  serviceEyebrow: {
+    color: '#9CA3AF',
 
-    fontSize: 14,
+    fontSize: 10,
 
     fontWeight: '700',
+
+    letterSpacing: 1,
   },
 
-  nextText: {
+  serviceTitle: {
+    marginTop: 8,
+
+    color: '#FFFFFF',
+
+    fontSize: 20,
+
+    fontWeight: '800',
+  },
+
+  serviceText: {
     marginTop: 7,
+
+    maxWidth: 245,
 
     color: '#D1D5DB',
 
     fontSize: 13,
 
     lineHeight: 20,
+  },
+
+  serviceArrow: {
+    width: 38,
+
+    height: 38,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    borderRadius: 12,
+
+    backgroundColor: '#FFFFFF',
+  },
+
+  serviceArrowText: {
+    color: '#111827',
+
+    fontSize: 21,
+
+    fontWeight: '700',
   },
 
   logoutButton: {
