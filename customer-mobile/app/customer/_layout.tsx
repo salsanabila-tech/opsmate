@@ -1,10 +1,10 @@
-import { Redirect } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { useAuth } from '../src/context/auth-context';
+import { useAuth } from '../../src/context/auth-context';
 
-export default function IndexScreen() {
+export default function CustomerLayout() {
   const { status, user } = useAuth();
 
   if (status === 'loading') {
@@ -19,7 +19,17 @@ export default function IndexScreen() {
     return <Redirect href="/auth/login" />;
   }
 
-  return <Redirect href="/customer" />;
+  if (user.role !== 'CUSTOMER' || !user.customerId) {
+    return <Redirect href="/auth/login" />;
+  }
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+      }}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

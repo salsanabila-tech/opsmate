@@ -4,17 +4,21 @@ import { StatusBar } from 'expo-status-bar';
 
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { AuthProvider } from '../src/context/auth-context';
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
+      <AuthProvider>
+        <StatusBar style="dark" />
 
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'fade',
-        }}
-      />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'fade',
+          }}
+        />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
