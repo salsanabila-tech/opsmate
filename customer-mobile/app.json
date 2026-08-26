@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "OpsMate Customer",
+    "slug": "opsmate-customer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "opsmate-customer",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.salsanabila.opsmate.customer"
+    },
+
+    "android": {
+      "package": "com.salsanabila.opsmate.customer",
+      "adaptiveIcon": {
+        "backgroundColor": "#F5F5F5",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+
+    "plugins": ["expo-router"],
+
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
