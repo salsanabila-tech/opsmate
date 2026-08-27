@@ -257,14 +257,38 @@ export async function getMyServiceRequest(input: GetMyServiceRequestInput) {
       workOrder: {
         select: {
           id: true,
+
           workOrderNumber: true,
+
           status: true,
+
           scheduledAt: true,
+
+          completedAt: true,
+
+          createdAt: true,
+
+          updatedAt: true,
 
           technician: {
             select: {
               id: true,
+
               name: true,
+            },
+          },
+
+          statusHistories: {
+            orderBy: {
+              createdAt: 'asc',
+            },
+
+            select: {
+              id: true,
+
+              newStatus: true,
+
+              createdAt: true,
             },
           },
         },

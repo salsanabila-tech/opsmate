@@ -1,4 +1,4 @@
-import type { ServiceRequestStatus } from '../types/service-request';
+import type { ServiceRequestStatus, WorkOrderStatus } from '../types/service-request';
 
 const statusLabels: Record<ServiceRequestStatus, string> = {
   SUBMITTED: 'Dikirim',
@@ -12,6 +12,20 @@ const statusLabels: Record<ServiceRequestStatus, string> = {
   CANCELLED: 'Dibatalkan',
 
   CONVERTED: 'Diproses',
+};
+
+const workOrderStatusLabels: Record<WorkOrderStatus, string> = {
+  PENDING: 'Menunggu Penugasan',
+
+  ASSIGNED: 'Teknisi Ditugaskan',
+
+  ON_THE_WAY: 'Teknisi Menuju Lokasi',
+
+  IN_PROGRESS: 'Sedang Dikerjakan',
+
+  COMPLETED: 'Selesai',
+
+  CANCELLED: 'Dibatalkan',
 };
 
 export function getServiceRequestStatusLabel(status: ServiceRequestStatus): string {
@@ -44,4 +58,12 @@ export function formatDateTime(value: string | null | undefined): string {
 
     minute: '2-digit',
   });
+}
+
+export function getWorkOrderStatusLabel(status: WorkOrderStatus): string {
+  return workOrderStatusLabels[status];
+}
+
+export function isWorkOrderTerminalStatus(status: WorkOrderStatus): boolean {
+  return status === 'COMPLETED' || status === 'CANCELLED';
 }

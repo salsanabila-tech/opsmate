@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { router, useLocalSearchParams } from 'expo-router';
 
@@ -10,7 +10,9 @@ import { cancelMyServiceRequest, getMyServiceRequest } from '../../../src/servic
 
 import type { ServiceRequestDetail } from '../../../src/types/service-request';
 
-import { canCancelServiceRequest, formatDateTime, getServiceRequestStatusLabel } from '../../../src/utils/service-request';
+import { WorkOrderProgress } from '../../../src/components/work-order-progress';
+
+import { canCancelServiceRequest, formatDateTime, getServiceRequestStatusLabel, getWorkOrderStatusLabel, isWorkOrderTerminalStatus } from '../../../src/utils/service-request';
 
 export default function ServiceRequestDetailScreen() {
   const params = useLocalSearchParams<{
@@ -29,34 +31,108 @@ export default function ServiceRequestDetailScreen() {
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function loadDetails(): Promise<void> {
-    if (!serviceRequestId) {
-      setErrorMessage('Service Request ID tidak valid.');
+  const requestInFlight = useRef(false);
 
-      setLoading(false);
+  const [liveUpdating, setLiveUpdating] = useState(false);
 
-      return;
-    }
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
 
-    try {
-      setErrorMessage(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
-      const response = await getMyServiceRequest(serviceRequestId);
+  const loadDetails = useCallback(
+    async (
+      options: {
+        silent?: boolean;
+      } = {},
+    ): Promise<void> => {
+      const silent = options.silent ?? false;
 
-      setRequest(response.data.serviceRequest);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Detail permintaan gagal dimuat.');
-    } finally {
-      setLoading(false);
+      if (!serviceRequestId) {
+        setErrorMessage('Service Request ID tidak valid.');
 
-      setRefreshing(false);
-    }
-  }
+        setLoading(false);
+
+        return;
+      }
+
+      if (requestInFlight.current) {
+        return;
+      }
+
+      requestInFlight.current = true;
+
+      if (silent) {
+        setLiveUpdating(true);
+      }
+
+      try {
+        if (!silent) {
+          setErrorMessage(null);
+        }
+
+        const response = await getMyServiceRequest(serviceRequestId);
+
+        setRequest(response.data.serviceRequest);
+
+        setLastSyncedAt(new Date());
+
+        setSyncError(null);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Detail permintaan gagal dimuat.';
+
+        if (silent) {
+          setSyncError(message);
+        } else {
+          setErrorMessage(message);
+        }
+      } finally {
+        requestInFlight.current = false;
+
+        setLoading(false);
+
+        setRefreshing(false);
+
+        setLiveUpdating(false);
+      }
+    },
+    [serviceRequestId],
+  );
 
   useEffect(() => {
     void loadDetails();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceRequestId]);
+  }, [loadDetails]);
+
+  const shouldAutoTrack = request !== null && request.status !== 'REJECTED' && request.status !== 'CANCELLED' && (!request.workOrder || !isWorkOrderTerminalStatus(request.workOrder.status));
+
+  useEffect(() => {
+    if (!shouldAutoTrack) {
+      return;
+    }
+
+    function refreshIfActive() {
+      if (AppState.currentState === 'active') {
+        void loadDetails({
+          silent: true,
+        });
+      }
+    }
+
+    const intervalId = setInterval(refreshIfActive, 10_000);
+
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void loadDetails({
+          silent: true,
+        });
+      }
+    });
+
+    return () => {
+      clearInterval(intervalId);
+
+      subscription.remove();
+    };
+  }, [loadDetails, shouldAutoTrack]);
 
   function confirmCancel() {
     if (!request || cancelling) {
@@ -101,6 +177,10 @@ export default function ServiceRequestDetailScreen() {
   }
 
   async function handleRefresh() {
+    if (requestInFlight.current) {
+      return;
+    }
+
     setRefreshing(true);
 
     await loadDetails();
@@ -179,6 +259,30 @@ export default function ServiceRequestDetailScreen() {
 
         <Text style={styles.serviceType}>{request.serviceType}</Text>
 
+        <View style={styles.liveCard}>
+          <View style={[styles.liveDot, shouldAutoTrack ? styles.liveDotActive : styles.liveDotIdle]} />
+
+          <View style={styles.liveContent}>
+            <Text style={styles.liveTitle}>{shouldAutoTrack ? 'Live tracking aktif' : 'Tracking selesai'}</Text>
+
+            <Text style={syncError ? styles.liveError : styles.liveSubtitle}>
+              {syncError
+                ? 'Sinkronisasi terbaru gagal. Data terakhir tetap ditampilkan.'
+                : lastSyncedAt
+                  ? `Terakhir diperbarui ${lastSyncedAt.toLocaleTimeString('id-ID', {
+                      hour: '2-digit',
+
+                      minute: '2-digit',
+
+                      second: '2-digit',
+                    })}`
+                  : 'Menunggu sinkronisasi...'}
+            </Text>
+          </View>
+
+          {liveUpdating ? <ActivityIndicator size="small" /> : null}
+        </View>
+
         <Section title="Informasi Permintaan">
           <InfoRow label="Deskripsi" value={request.description} />
 
@@ -196,16 +300,26 @@ export default function ServiceRequestDetailScreen() {
             <>
               <InfoRow label="Nomor Work Order" value={request.workOrder.workOrderNumber} />
 
-              <InfoRow label="Status Work Order" value={request.workOrder.status} />
+              <InfoRow label="Status" value={getWorkOrderStatusLabel(request.workOrder.status)} />
 
               <InfoRow label="Jadwal" value={formatDateTime(request.workOrder.scheduledAt)} />
 
               <InfoRow label="Teknisi" value={request.workOrder.technician?.name ?? 'Belum ditentukan'} />
+
+              {request.workOrder.completedAt ? <InfoRow label="Selesai" value={formatDateTime(request.workOrder.completedAt)} /> : null}
             </>
           ) : (
             <Text style={styles.emptySection}>Work Order belum dibuat oleh Admin.</Text>
           )}
         </Section>
+
+        {request.workOrder ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Progress Pekerjaan</Text>
+
+            <WorkOrderProgress workOrder={request.workOrder} />
+          </View>
+        ) : null}
 
         <Section title="Timeline Status">
           {request.statusHistories.map((history, index) => (
@@ -602,5 +716,73 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
 
     fontWeight: '700',
+  },
+
+  liveCard: {
+    marginTop: 22,
+
+    padding: 14,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    borderWidth: 1,
+
+    borderColor: '#E5E7EB',
+
+    borderRadius: 14,
+
+    backgroundColor: '#FFFFFF',
+  },
+
+  liveDot: {
+    width: 9,
+
+    height: 9,
+
+    borderRadius: 999,
+  },
+
+  liveDotActive: {
+    backgroundColor: '#16A34A',
+  },
+
+  liveDotIdle: {
+    backgroundColor: '#9CA3AF',
+  },
+
+  liveContent: {
+    flex: 1,
+
+    marginLeft: 10,
+
+    marginRight: 10,
+  },
+
+  liveTitle: {
+    color: '#111827',
+
+    fontSize: 12,
+
+    fontWeight: '800',
+  },
+
+  liveSubtitle: {
+    marginTop: 3,
+
+    color: '#9CA3AF',
+
+    fontSize: 10,
+  },
+
+  liveError: {
+    marginTop: 3,
+
+    color: '#B91C1C',
+
+    fontSize: 10,
+
+    lineHeight: 15,
   },
 });
