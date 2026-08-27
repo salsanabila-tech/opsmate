@@ -79,6 +79,14 @@ export type ServiceRequestTechnician = {
   name: string;
 };
 
+export type ServiceRequestWorkOrderStatusHistory = {
+  id: string;
+
+  newStatus: WorkOrderStatus;
+
+  createdAt: string;
+};
+
 export type ServiceRequestWorkOrder = {
   id: string;
 
@@ -88,7 +96,15 @@ export type ServiceRequestWorkOrder = {
 
   scheduledAt: string;
 
+  completedAt: string | null;
+
+  createdAt: string;
+
+  updatedAt: string;
+
   technician: ServiceRequestTechnician | null;
+
+  statusHistories: ServiceRequestWorkOrderStatusHistory[];
 };
 
 export type ServiceRequestStatusHistory = {
