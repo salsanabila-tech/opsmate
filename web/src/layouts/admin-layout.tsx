@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
-import { ClipboardList, LayoutDashboard, LogOut, Users, UserRoundCog } from 'lucide-react';
+import { ClipboardList, Inbox, LayoutDashboard, LogOut, Users, UserRoundCog } from 'lucide-react';
 
 import { useAuth } from '../context/auth-context';
 
@@ -10,6 +10,12 @@ const menu = [
     to: '/app',
     icon: LayoutDashboard,
     end: true,
+  },
+
+  {
+    label: 'Service Requests',
+    to: '/app/service-requests',
+    icon: Inbox,
   },
 
   {
