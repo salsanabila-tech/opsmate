@@ -30,6 +30,10 @@ import { TechnicianDetailPage } from './pages/technician-detail-page';
 
 import { EditTechnicianPage } from './pages/edit-technician-page';
 
+import { ServiceRequestsPage } from './pages/service-request-page';
+
+import { ServiceRequestDetailPage } from './pages/service-request-detail-page';
+
 export default function App() {
   return (
     <Routes>
@@ -38,6 +42,10 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route path="/app" element={<AdminLayout />}>
           <Route index element={<DashboardPage />} />
+
+          <Route path="service-requests" element={<ServiceRequestsPage />} />
+
+          <Route path="service-requests/:serviceRequestId" element={<ServiceRequestDetailPage />} />
 
           <Route path="work-orders" element={<WorkOrdersPage />} />
 
