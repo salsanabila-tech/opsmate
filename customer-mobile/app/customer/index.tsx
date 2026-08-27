@@ -70,6 +70,20 @@ export default function CustomerHomeScreen() {
           </Pressable>
         </Link>
 
+        <Link href="/customer/requests" asChild>
+          <Pressable style={styles.historyCard}>
+            <View>
+              <Text style={styles.historyEyebrow}>RIWAYAT</Text>
+
+              <Text style={styles.historyTitle}>Permintaan Saya</Text>
+
+              <Text style={styles.historyText}>Pantau status dan lihat perkembangan service Anda.</Text>
+            </View>
+
+            <Text style={styles.historyArrow}>→</Text>
+          </Pressable>
+        </Link>
+
         <Pressable
           disabled={loggingOut}
           onPress={() => {
@@ -273,6 +287,66 @@ const styles = StyleSheet.create({
     color: '#111827',
 
     fontSize: 14,
+
+    fontWeight: '700',
+  },
+
+  historyCard: {
+    marginTop: 12,
+
+    padding: 20,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'space-between',
+
+    borderWidth: 1,
+
+    borderColor: '#E5E7EB',
+
+    borderRadius: 16,
+
+    backgroundColor: '#FFFFFF',
+  },
+
+  historyEyebrow: {
+    color: '#9CA3AF',
+
+    fontSize: 10,
+
+    fontWeight: '700',
+
+    letterSpacing: 1,
+  },
+
+  historyTitle: {
+    marginTop: 7,
+
+    color: '#111827',
+
+    fontSize: 18,
+
+    fontWeight: '800',
+  },
+
+  historyText: {
+    marginTop: 6,
+
+    maxWidth: 245,
+
+    color: '#6B7280',
+
+    fontSize: 12,
+
+    lineHeight: 18,
+  },
+
+  historyArrow: {
+    color: '#111827',
+
+    fontSize: 21,
 
     fontWeight: '700',
   },
