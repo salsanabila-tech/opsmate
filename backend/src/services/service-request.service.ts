@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { Prisma, ServiceRequestStatus } from '../generated/prisma/client.js';
+import { Prisma, ServiceRequestStatus, UserRole, WorkOrderStatus } from '../generated/prisma/client.js';
 
 import { AppError } from '../errors/app-error.js';
 
@@ -12,6 +12,14 @@ function generateServiceRequestNumber(): string {
   const suffix = randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase();
 
   return `SR-${date}-${suffix}`;
+}
+
+function generateWorkOrderNumber(): string {
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  const suffix = randomUUID().replace(/-/g, '').slice(0, 12).toUpperCase();
+
+  return `WO-${date}-${suffix}`;
 }
 
 type StatusFilter = ServiceRequestStatus | 'all';
@@ -58,6 +66,16 @@ type UpdateServiceRequestStatusInput = {
   adminUserId: string;
   status: AdminServiceRequestStatus;
   notes?: string;
+};
+
+type ConvertServiceRequestInput = {
+  serviceRequestId: string;
+
+  adminUserId: string;
+
+  technicianId: string;
+
+  scheduledAt: Date;
 };
 
 async function findCustomerByUserId(userId: string) {
@@ -615,5 +633,199 @@ export async function updateServiceRequestStatus(input: UpdateServiceRequestStat
     });
 
     return updated;
+  });
+}
+
+export async function convertServiceRequestToWorkOrder(input: ConvertServiceRequestInput) {
+  if (input.scheduledAt.getTime() <= Date.now()) {
+    throw new AppError(422, 'Jadwal Work Order harus berada di masa depan', 'WORK_ORDER_SCHEDULE_INVALID');
+  }
+
+  return prisma.$transaction(async (transaction) => {
+    const serviceRequest = await transaction.serviceRequest.findUnique({
+      where: {
+        id: input.serviceRequestId,
+      },
+
+      select: {
+        id: true,
+
+        requestNumber: true,
+
+        customerId: true,
+
+        title: true,
+
+        description: true,
+
+        status: true,
+
+        workOrderId: true,
+      },
+    });
+
+    if (!serviceRequest) {
+      throw new AppError(404, 'Service request tidak ditemukan', 'SERVICE_REQUEST_NOT_FOUND');
+    }
+
+    if (serviceRequest.status !== ServiceRequestStatus.ACCEPTED) {
+      throw new AppError(409, 'Hanya Service Request berstatus ACCEPTED yang dapat dikonversi menjadi Work Order', 'SERVICE_REQUEST_NOT_ACCEPTED');
+    }
+
+    if (serviceRequest.workOrderId) {
+      throw new AppError(409, 'Service Request sudah memiliki Work Order', 'SERVICE_REQUEST_ALREADY_CONVERTED');
+    }
+
+    const technician = await transaction.user.findUnique({
+      where: {
+        id: input.technicianId,
+      },
+
+      select: {
+        id: true,
+
+        name: true,
+
+        email: true,
+
+        role: true,
+
+        isActive: true,
+      },
+    });
+
+    if (!technician || technician.role !== UserRole.TECHNICIAN) {
+      throw new AppError(404, 'Teknisi tidak ditemukan', 'TECHNICIAN_NOT_FOUND');
+    }
+
+    if (!technician.isActive) {
+      throw new AppError(409, 'Teknisi sedang tidak aktif', 'TECHNICIAN_INACTIVE');
+    }
+
+    const workOrderNumber = generateWorkOrderNumber();
+
+    const workOrder = await transaction.workOrder.create({
+      data: {
+        workOrderNumber,
+
+        customerId: serviceRequest.customerId,
+
+        technicianId: technician.id,
+
+        title: serviceRequest.title,
+
+        description: serviceRequest.description,
+
+        scheduledAt: input.scheduledAt,
+
+        status: WorkOrderStatus.ASSIGNED,
+
+        completedAt: null,
+
+        createdById: input.adminUserId,
+      },
+
+      select: {
+        id: true,
+
+        workOrderNumber: true,
+
+        title: true,
+
+        description: true,
+
+        scheduledAt: true,
+
+        status: true,
+
+        completedAt: true,
+
+        createdAt: true,
+
+        updatedAt: true,
+
+        technician: {
+          select: {
+            id: true,
+
+            name: true,
+
+            email: true,
+          },
+        },
+      },
+    });
+
+    await transaction.workOrderStatusHistory.create({
+      data: {
+        workOrderId: workOrder.id,
+
+        previousStatus: null,
+
+        newStatus: WorkOrderStatus.ASSIGNED,
+
+        changedById: input.adminUserId,
+
+        notes: `Work Order dibuat dari ${serviceRequest.requestNumber} dan ditugaskan ke ${technician.name}`,
+      },
+    });
+
+    const updateResult = await transaction.serviceRequest.updateMany({
+      where: {
+        id: serviceRequest.id,
+
+        status: ServiceRequestStatus.ACCEPTED,
+
+        workOrderId: null,
+      },
+
+      data: {
+        status: ServiceRequestStatus.CONVERTED,
+
+        workOrderId: workOrder.id,
+      },
+    });
+
+    if (updateResult.count !== 1) {
+      throw new AppError(409, 'Service Request telah berubah atau sudah dikonversi', 'SERVICE_REQUEST_CONVERSION_CONFLICT');
+    }
+
+    await transaction.serviceRequestStatusHistory.create({
+      data: {
+        serviceRequestId: serviceRequest.id,
+
+        previousStatus: ServiceRequestStatus.ACCEPTED,
+
+        newStatus: ServiceRequestStatus.CONVERTED,
+
+        changedById: input.adminUserId,
+
+        notes: `Dikonversi menjadi Work Order ${workOrder.workOrderNumber}`,
+      },
+    });
+
+    const updatedServiceRequest = await transaction.serviceRequest.findUnique({
+      where: {
+        id: serviceRequest.id,
+      },
+
+      select: {
+        id: true,
+
+        requestNumber: true,
+
+        status: true,
+
+        workOrderId: true,
+
+        updatedAt: true,
+      },
+    });
+
+    return {
+      serviceRequest: updatedServiceRequest,
+
+      workOrder,
+    };
   });
 }

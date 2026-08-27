@@ -8,6 +8,7 @@ import { authorizeRoles } from '../middlewares/authorize-role.middleware.js';
 
 import {
   cancelMyServiceRequestController,
+  convertServiceRequestController,
   createServiceRequestController,
   getMyServiceRequestController,
   getServiceRequestDetailsController,
@@ -27,6 +28,8 @@ serviceRequestRouter.get('/my/:serviceRequestId', authenticate, authorizeRoles(U
 serviceRequestRouter.patch('/my/:serviceRequestId/cancel', authenticate, authorizeRoles(UserRole.CUSTOMER), cancelMyServiceRequestController);
 
 serviceRequestRouter.get('/', authenticate, authorizeRoles(UserRole.ADMIN), listServiceRequestsController);
+
+serviceRequestRouter.post('/:serviceRequestId/convert', authenticate, authorizeRoles(UserRole.ADMIN), convertServiceRequestController);
 
 serviceRequestRouter.get('/:serviceRequestId', authenticate, authorizeRoles(UserRole.ADMIN), getServiceRequestDetailsController);
 

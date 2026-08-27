@@ -8,9 +8,11 @@ import { Link, useParams } from 'react-router-dom';
 
 import { ServiceRequestStatusBadge } from '../components/service-request-status-badge';
 
-import { fetchServiceRequestDetail, updateServiceRequestStatus } from '../services/service-request.service';
+import { convertServiceRequestToWorkOrder, fetchServiceRequestDetail, updateServiceRequestStatus } from '../services/service-request.service';
 
 import type { AdminServiceRequestStatus } from '../types/service-request';
+
+import { fetchActiveTechnicianOptions } from '../services/directory.service';
 
 import { formatDateTime } from '../utils/date';
 
@@ -22,6 +24,10 @@ export function ServiceRequestDetailPage() {
   const queryClient = useQueryClient();
 
   const [notes, setNotes] = useState('');
+
+  const [technicianId, setTechnicianId] = useState('');
+
+  const [scheduledAt, setScheduledAt] = useState('');
 
   const serviceRequestQuery = useQuery({
     queryKey: ['service-request', serviceRequestId],
@@ -35,6 +41,14 @@ export function ServiceRequestDetailPage() {
     },
 
     enabled: Boolean(serviceRequestId),
+  });
+
+  const techniciansQuery = useQuery({
+    queryKey: ['technician-options'],
+
+    queryFn: fetchActiveTechnicianOptions,
+
+    enabled: serviceRequestQuery.data?.data.serviceRequest.status === 'ACCEPTED',
   });
 
   const statusMutation = useMutation({
@@ -65,6 +79,62 @@ export function ServiceRequestDetailPage() {
     },
   });
 
+  const conversionMutation = useMutation({
+    mutationFn: async () => {
+      if (!serviceRequestId) {
+        throw new Error('Service Request ID tidak valid');
+      }
+
+      if (!technicianId) {
+        throw new Error('Technician wajib dipilih.');
+      }
+
+      if (!scheduledAt) {
+        throw new Error('Jadwal Work Order wajib diisi.');
+      }
+
+      const schedule = new Date(scheduledAt);
+
+      if (Number.isNaN(schedule.getTime())) {
+        throw new Error('Format jadwal tidak valid.');
+      }
+
+      if (schedule.getTime() <= Date.now()) {
+        throw new Error('Jadwal Work Order harus berada di masa depan.');
+      }
+
+      return convertServiceRequestToWorkOrder(serviceRequestId, {
+        technicianId,
+
+        scheduledAt: schedule.toISOString(),
+      });
+    },
+
+    onSuccess: async () => {
+      setTechnicianId('');
+
+      setScheduledAt('');
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['service-request', serviceRequestId],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['service-requests'],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['work-orders'],
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['dashboard'],
+        }),
+      ]);
+    },
+  });
+
   if (serviceRequestQuery.isPending) {
     return <div className="p-20 text-center text-sm text-gray-400">Memuat Service Request...</div>;
   }
@@ -82,6 +152,8 @@ export function ServiceRequestDetailPage() {
   }
 
   const request = serviceRequestQuery.data.data.serviceRequest;
+
+  const technicians = techniciansQuery.data?.data.technicians ?? [];
 
   const canReview = request.status === 'SUBMITTED';
 
@@ -118,6 +190,32 @@ export function ServiceRequestDetailPage() {
       });
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'Status Service Request gagal diperbarui.');
+    }
+  }
+
+  async function handleConvertToWorkOrder() {
+    if (!technicianId) {
+      window.alert('Pilih technician terlebih dahulu.');
+
+      return;
+    }
+
+    if (!scheduledAt) {
+      window.alert('Tentukan jadwal Work Order.');
+
+      return;
+    }
+
+    if (!window.confirm('Buat Work Order dan tugaskan technician ini?')) {
+      return;
+    }
+
+    try {
+      await conversionMutation.mutateAsync();
+
+      window.alert('Work Order berhasil dibuat dan ditugaskan.');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Service Request gagal dikonversi.');
     }
   }
 
@@ -315,10 +413,58 @@ export function ServiceRequestDetailPage() {
           ) : null}
 
           {request.status === 'ACCEPTED' && !request.workOrder ? (
-            <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-              <h3 className="font-semibold text-emerald-900">Request diterima</h3>
+            <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+              <h3 className="font-semibold text-emerald-950">Buat Work Order</h3>
 
-              <p className="mt-2 text-sm leading-6 text-emerald-700">Service Request siap dilanjutkan ke proses Work Order dan penugasan technician.</p>
+              <p className="mt-2 text-sm leading-6 text-emerald-800">Request sudah diterima. Pilih technician dan konfirmasi jadwal untuk membuat Work Order.</p>
+
+              <div className="mt-6">
+                <label className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Technician</label>
+
+                <select
+                  value={technicianId}
+                  onChange={(event) => setTechnicianId(event.target.value)}
+                  disabled={techniciansQuery.isPending || conversionMutation.isPending}
+                  className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                >
+                  <option value="">Pilih Technician</option>
+
+                  {technicians.map((technician) => (
+                    <option key={technician.id} value={technician.id}>
+                      {technician.name} — {technician.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-5">
+                <label className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Jadwal Work Order</label>
+
+                <input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(event) => setScheduledAt(event.target.value)}
+                  disabled={conversionMutation.isPending}
+                  className="mt-2 h-11 w-full rounded-xl border border-emerald-200 bg-white px-3 text-sm text-gray-700 outline-none focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                />
+
+                {request.preferredSchedule ? <p className="mt-2 text-xs text-emerald-700">Jadwal yang diminta Customer: {formatDateTime(request.preferredSchedule)}</p> : null}
+              </div>
+
+              {techniciansQuery.isError ? <p className="mt-4 text-sm text-red-700">Daftar technician gagal dimuat.</p> : null}
+
+              {conversionMutation.isError ? <p className="mt-4 text-sm text-red-700">{conversionMutation.error instanceof Error ? conversionMutation.error.message : 'Konversi gagal.'}</p> : null}
+
+              <button
+                type="button"
+                disabled={conversionMutation.isPending || !technicianId || !scheduledAt}
+                onClick={() => {
+                  void handleConvertToWorkOrder();
+                }}
+                className="mt-6 h-11 w-full rounded-xl bg-emerald-800 px-4 text-sm font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {conversionMutation.isPending ? 'Membuat Work Order...' : 'Buat & Tugaskan Work Order'}
+              </button>
             </section>
           ) : null}
 
