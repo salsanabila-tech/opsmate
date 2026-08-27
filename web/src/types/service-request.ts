@@ -175,3 +175,57 @@ export type UpdateServiceRequestStatusResponse = {
     };
   };
 };
+
+export type ConvertServiceRequestInput = {
+  technicianId: string;
+
+  scheduledAt: string;
+};
+
+export type ConvertServiceRequestResponse = {
+  success: true;
+
+  message: string;
+
+  data: {
+    serviceRequest: {
+      id: string;
+
+      requestNumber: string;
+
+      status: ServiceRequestStatus;
+
+      workOrderId: string;
+
+      updatedAt: string;
+    };
+
+    workOrder: {
+      id: string;
+
+      workOrderNumber: string;
+
+      title: string;
+
+      description: string;
+
+      scheduledAt: string;
+
+      status: WorkOrderStatus;
+
+      completedAt: string | null;
+
+      createdAt: string;
+
+      updatedAt: string;
+
+      technician: {
+        id: string;
+
+        name: string;
+
+        email: string;
+      };
+    };
+  };
+};

@@ -71,6 +71,21 @@ export const updateServiceRequestStatusBodySchema = z
     path: ['notes'],
   });
 
+export const convertServiceRequestBodySchema = z
+  .object({
+    technicianId: z.string().uuid('Technician ID harus berupa UUID valid'),
+
+    scheduledAt: z
+      .string()
+      .datetime({
+        offset: true,
+      })
+      .refine((value) => new Date(value).getTime() > Date.now(), {
+        message: 'Jadwal Work Order harus berada di masa depan',
+      }),
+  })
+  .strict();
+
 export const cancelServiceRequestBodySchema = z
   .object({
     notes: z.string().trim().min(1).max(500).optional(),

@@ -1,6 +1,14 @@
 import { apiRequest } from './api';
 
-import type { ServiceRequestDetailResponse, ServiceRequestListParams, ServiceRequestListResponse, UpdateServiceRequestStatusInput, UpdateServiceRequestStatusResponse } from '../types/service-request';
+import type {
+  ServiceRequestDetailResponse,
+  ServiceRequestListParams,
+  ServiceRequestListResponse,
+  UpdateServiceRequestStatusInput,
+  UpdateServiceRequestStatusResponse,
+  ConvertServiceRequestInput,
+  ConvertServiceRequestResponse,
+} from '../types/service-request';
 
 function buildQuery(params: ServiceRequestListParams): string {
   const query = new URLSearchParams();
@@ -52,6 +60,20 @@ export function updateServiceRequestStatus(serviceRequestId: string, input: Upda
             notes: input.notes.trim(),
           }
         : {}),
+    }),
+  });
+}
+
+export function convertServiceRequestToWorkOrder(serviceRequestId: string, input: ConvertServiceRequestInput): Promise<ConvertServiceRequestResponse> {
+  return apiRequest<ConvertServiceRequestResponse>(`/service-requests/${encodeURIComponent(serviceRequestId)}/convert`, {
+    method: 'POST',
+
+    authenticated: true,
+
+    body: JSON.stringify({
+      technicianId: input.technicianId,
+
+      scheduledAt: input.scheduledAt,
     }),
   });
 }

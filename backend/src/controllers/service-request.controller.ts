@@ -4,10 +4,20 @@ import type { ZodError } from 'zod';
 
 import { AppError } from '../errors/app-error.js';
 
-import { cancelMyServiceRequest, createServiceRequest, getMyServiceRequest, getServiceRequestDetails, listMyServiceRequests, listServiceRequests, updateServiceRequestStatus } from '../services/service-request.service.js';
+import {
+  cancelMyServiceRequest,
+  convertServiceRequestToWorkOrder,
+  createServiceRequest,
+  getMyServiceRequest,
+  getServiceRequestDetails,
+  listMyServiceRequests,
+  listServiceRequests,
+  updateServiceRequestStatus,
+} from '../services/service-request.service.js';
 
 import {
   cancelServiceRequestBodySchema,
+  convertServiceRequestBodySchema,
   createServiceRequestBodySchema,
   listMyServiceRequestsQuerySchema,
   listServiceRequestsQuerySchema,
@@ -265,6 +275,50 @@ export async function updateServiceRequestStatusController(request: Request, res
       data: {
         serviceRequest: result,
       },
+    });
+  } catch (error: unknown) {
+    next(error);
+  }
+}
+
+export async function convertServiceRequestController(request: Request, response: Response, next: NextFunction): Promise<void> {
+  const paramsValidation = serviceRequestIdParamSchema.safeParse(request.params);
+
+  if (!paramsValidation.success) {
+    sendValidationError(response, paramsValidation.error);
+
+    return;
+  }
+
+  const bodyValidation = convertServiceRequestBodySchema.safeParse(request.body);
+
+  if (!bodyValidation.success) {
+    sendValidationError(response, bodyValidation.error);
+
+    return;
+  }
+
+  try {
+    if (!request.auth) {
+      throw new AppError(401, 'Authentication diperlukan', 'AUTHENTICATION_REQUIRED');
+    }
+
+    const result = await convertServiceRequestToWorkOrder({
+      serviceRequestId: paramsValidation.data.serviceRequestId,
+
+      adminUserId: request.auth.userId,
+
+      technicianId: bodyValidation.data.technicianId,
+
+      scheduledAt: new Date(bodyValidation.data.scheduledAt),
+    });
+
+    response.status(201).json({
+      success: true,
+
+      message: 'Service Request berhasil dikonversi menjadi Work Order',
+
+      data: result,
     });
   } catch (error: unknown) {
     next(error);
